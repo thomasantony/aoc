@@ -1,10 +1,4 @@
 from strutils import parseInt
+import sequtils
 
-var total: int
-var line: string
-
-for line in stdin.lines:
-  let number:int = parseInt(line)
-  total = total + number
-
-echo "Total is ", total
+echo "Total is ", foldl(map(toSeq(stdin.lines), parseInt), a+b)
