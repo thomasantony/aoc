@@ -1,8 +1,7 @@
 from sequtils import toSeq, zip, filter, map
 from itertools import combinations
 
-# proc is_good_pair(pair: seq[string]): bool  {. noSideEffect .}=
-proc is_good_pair(pair: seq[string]): bool =
+proc is_good_pair(pair: seq[string]): bool  {. noSideEffect .}=
   var bad_count = 0
   for c in zip(pair[0], pair[1]):
     if c.a != c.b:
