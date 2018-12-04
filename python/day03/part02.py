@@ -10,8 +10,8 @@ def parse_line(line):
     return map(int, pattern.findall(line)[0])
 
 
-def all_cells(left, top, w, h):
-    return it.product(range(left, left+w), range(top, top+h))
+def all_cells(left, top, width, height):
+    return it.product(range(left, left+width), range(top, top+height))
 
 
 claim_ids = {id: claim for id, *claim in map(parse_line, sys.stdin)}
