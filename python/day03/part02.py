@@ -7,13 +7,7 @@ pattern = re.compile(r'\#(\d+) @ (\d+),(\d+): (\d+)x(\d+)')
 
 
 def parse_line(line):
-    row = pattern.match(line)
-    id = row[1]
-    left = int(row[2])
-    top = int(row[3])
-    w = int(row[4])
-    h = int(row[5])
-    return id, left, top, w, h
+    return map(int, pattern.findall(line)[0])
 
 
 def all_cells(left, top, w, h):
