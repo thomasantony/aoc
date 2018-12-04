@@ -14,5 +14,4 @@ claim_counter = cl.Counter((x, y)
                            for x, y in it.product(range(left, left+w), range(top, top+h))
                            )
 
-answer = sum(1 for _, ctr in claim_counter.items() if ctr >= 2)
-print(answer)
+print('Answer is', sum(1 for _, ctr in claim_counter.items() if ctr >= 2))
