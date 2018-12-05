@@ -20,4 +20,6 @@ def fully_react(data):
     return len(data)
 
 
-print(fully_react(data))
+answer = min(fully_react(data.replace(char, '').replace(char.upper(), ''))
+             for char in string.ascii_lowercase)
+print('Answer', answer)
