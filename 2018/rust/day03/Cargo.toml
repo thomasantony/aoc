@@ -1,0 +1,18 @@
+[package]
+name = "day03"
+version = "0.1.0"
+authors = ["Thomas Antony <tantony@purdue.edu>"]
+edition = "2018"
+
+[dependencies]
+regex = "1"
+lazy_static = "1.2.0"
+itertools = "~0.8.0"
+
+[[bin]]
+name = "part01"
+path = "src/part01.rs"
+
+[[bin]]
+name = "part02"
+path = "src/part02.rs"
