@@ -58,18 +58,6 @@ pub fn read_input() -> u32 {
                               iproduct!((*l..(l+w)), (*t..(t+h))).all(|pt| {
                                   *counter.entry(pt).or_insert(0) == 1
                               })
-                            // let r = l+w; let b = t+h;
-                            // let mut all = true;
-                            // for point in iproduct!((*l..r), (*t..b))
-                            // {
-                            //   let entry = *counter.entry(point).or_insert(0);
-                            //   if entry != 1
-                            //   {
-                            //     all = false;
-                            //     break;
-                            //   }
-                            // }
-                            // all
                           })
                           .next().expect("No answer found");
     answer.0
