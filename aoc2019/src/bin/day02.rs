@@ -67,7 +67,7 @@ fn run_vm(program: &Vec<i32>) -> Vec<i32>
     opcode_table.insert(2, mul_op);
 
     let mut vm = IntComputer { cpu_state: CpuState::RUNNING, memory: &mut memory, ip: 0};
-    while (vm.cpu_state != CpuState::HALTED)
+    while vm.cpu_state != CpuState::HALTED
     {
         let opcode = vm.memory[vm.ip as usize];
         let opfn = opcode_table[&opcode];
