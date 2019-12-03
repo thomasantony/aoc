@@ -1,9 +1,4 @@
 use ::aoc2019::*;
-use std::collections::HashMap;
-
-// type OpcodeFn = Fn<>;
-type OpcodeFn = fn(&mut IntComputer) -> ();
-
 
 #[derive(Debug, PartialEq)]
 enum CpuState
@@ -59,22 +54,20 @@ fn halt_op(vm: &mut IntComputer)
 }
 fn run_vm(program: &Vec<i32>, noun: i32, verb: i32) -> Vec<i32>
 {
-    let mut opcode_table: HashMap<i32, OpcodeFn> = HashMap::new();
-
     let mut memory = program.clone();
     memory[1] = noun;
     memory[2] = verb;
-
-    opcode_table.insert(99, halt_op);
-    opcode_table.insert(1, add_op);
-    opcode_table.insert(2, mul_op);
 
     let mut vm = IntComputer { cpu_state: CpuState::RUNNING, memory: &mut memory, ip: 0};
     while vm.cpu_state != CpuState::HALTED
     {
         let opcode = vm.memory[vm.ip as usize];
-        let opfn = opcode_table[&opcode];
-        opfn(&mut vm);
+        match opcode {
+            99 => halt_op(&mut vm),
+            1 => add_op(&mut vm),
+            2 => mul_op(&mut vm),
+            _ => panic!("invalid opcode {}", opcode)
+        };
     }
     return memory;
 }
