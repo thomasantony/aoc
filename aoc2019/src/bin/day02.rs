@@ -57,11 +57,14 @@ fn halt_op(vm: &mut IntComputer)
 {
     vm.cpu_state = CpuState::HALTED;
 }
-fn run_vm(program: &Vec<i32>) -> Vec<i32>
+fn run_vm(program: &Vec<i32>, noun: i32, verb: i32) -> Vec<i32>
 {
     let mut opcode_table: HashMap<i32, OpcodeFn> = HashMap::new();
 
     let mut memory = program.clone();
+    memory[1] = noun;
+    memory[2] = verb;
+
     opcode_table.insert(99, halt_op);
     opcode_table.insert(1, add_op);
     opcode_table.insert(2, mul_op);
@@ -80,9 +83,8 @@ fn main()
     let input = read_stdin();
     let data: Vec<i32> = parse_numbers_with_delimiter(&input, ',')
                              .collect();
-    let output = run_vm(&data);
-    println!("Input: {:?}", data);
-    println!("Output: {:?}", output);
+    let output = run_vm(&data, 12, 2);
+    println!("Output: {:?}", output[0]);
 }
 
 
@@ -91,11 +93,11 @@ mod tests {
     use super::*;
     #[test]
     fn unit_tests_day_02() {
-        assert_eq!(run_vm(&vec![1,0,0,0,99]), vec![2,0,0,0,99]);
-        assert_eq!(run_vm(&vec![2,3,0,3,99]), vec![2,3,0,6,99]);
-        assert_eq!(run_vm(&vec![2,4,4,5,99,0]), vec![2,4,4,5,99,9801]);
-        assert_eq!(run_vm(&vec![1,1,1,4,99,5,6,0,99]), vec![30,1,1,4,2,5,6,0,99]);
-        assert_eq!(run_vm(&vec![1,9,10,3,2,3,11,0,99,30,40,50]), 
+        assert_eq!(run_vm(&vec![1,0,0,0,99], 0, 0), vec![2,0,0,0,99]);
+        assert_eq!(run_vm(&vec![2,3,0,3,99], 3, 0), vec![2,3,0,6,99]);
+        assert_eq!(run_vm(&vec![2,4,4,5,99,0], 4, 4), vec![2,4,4,5,99,9801]);
+        assert_eq!(run_vm(&vec![1,1,1,4,99,5,6,0,99], 1, 1), vec![30,1,1,4,2,5,6,0,99]);
+        assert_eq!(run_vm(&vec![1,9,10,3,2,3,11,0,99,30,40,50], 9, 10), 
                    vec![3500,9,10,70,2,3,11,0,99,30,40,50]);
     }
 }
