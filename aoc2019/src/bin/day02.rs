@@ -81,6 +81,7 @@ fn main()
     let data: Vec<i32> = parse_numbers_with_delimiter(&input, ',')
                              .collect();
     let output = run_vm(&data);
+    println!("Input: {:?}", data);
     println!("Output: {:?}", output);
 }
 
@@ -96,13 +97,5 @@ mod tests {
         assert_eq!(run_vm(&vec![1,1,1,4,99,5,6,0,99]), vec![30,1,1,4,2,5,6,0,99]);
         assert_eq!(run_vm(&vec![1,9,10,3,2,3,11,0,99,30,40,50]), 
                    vec![3500,9,10,70,2,3,11,0,99,30,40,50]);
-        
-        // assert_eq!(calc_fuel(14), 2);
-        // assert_eq!(calc_fuel(1969), 654);
-        // assert_eq!(calc_fuel(100756), 33583);
-
-        // assert_eq!(calc_fuel_cumulative(14), 2);
-        // assert_eq!(calc_fuel_cumulative(1969), 966);
-        // assert_eq!(calc_fuel_cumulative(100756), 50346);
     }
 }
