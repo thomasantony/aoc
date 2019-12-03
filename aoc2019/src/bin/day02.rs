@@ -22,16 +22,16 @@ struct IntComputer<'a> {
 fn add_op(vm: &mut IntComputer)
 {
     let ip = vm.ip as usize;
-    let op1_addr = vm.memory[ip + 1] as usize;
-    let op2_addr = vm.memory[ip + 2] as usize;
+    let param1_addr = vm.memory[ip + 1] as usize;
+    let param2_addr = vm.memory[ip + 2] as usize;
     let out_addr = vm.memory[ip + 3] as usize;
-    assert!(op1_addr < vm.memory.len());
-    assert!(op2_addr < vm.memory.len());
+    assert!(param1_addr < vm.memory.len());
+    assert!(param2_addr < vm.memory.len());
     assert!(out_addr < vm.memory.len());
 
-    let op1 = vm.memory[op1_addr];
-    let op2 = vm.memory[op2_addr];
-    vm.memory[out_addr] = op1 + op2;
+    let param1 = vm.memory[param1_addr];
+    let param2 = vm.memory[param2_addr];
+    vm.memory[out_addr] = param1 + param2;
 
     vm.ip += 4;
 }
@@ -39,16 +39,16 @@ fn add_op(vm: &mut IntComputer)
 fn mul_op(vm: &mut IntComputer)
 {
     let ip = vm.ip as usize;
-    let op1_addr = vm.memory[ip + 1] as usize;
-    let op2_addr = vm.memory[ip + 2] as usize;
+    let param1_addr = vm.memory[ip + 1] as usize;
+    let param2_addr = vm.memory[ip + 2] as usize;
     let out_addr = vm.memory[ip + 3] as usize;
-    assert!(op1_addr < vm.memory.len());
-    assert!(op2_addr < vm.memory.len());
+    assert!(param1_addr < vm.memory.len());
+    assert!(param2_addr < vm.memory.len());
     assert!(out_addr < vm.memory.len());
 
-    let op1 = vm.memory[op1_addr];
-    let op2 = vm.memory[op2_addr];
-    vm.memory[out_addr] = op1 * op2;
+    let param1 = vm.memory[param1_addr];
+    let param2 = vm.memory[param2_addr];
+    vm.memory[out_addr] = param1 * param2;
 
     vm.ip += 4;
 }
