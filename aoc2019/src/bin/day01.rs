@@ -22,8 +22,8 @@ fn calc_fuel_cumulative(mass: i32) -> i32 {
 
 fn main()
 {
-    let lines = read_input();
-    let masses = parse_numbers(&lines);
+    let input = read_stdin();
+    let masses = parse_numbers(&input);
 
     let mut total_a = 0;
     let mut total_b = 0;
