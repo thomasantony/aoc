@@ -14,7 +14,7 @@ pub fn parse_numbers<'a> (input: &'a String) -> impl Iterator<Item=i32> + '_
 
 pub fn parse_numbers_with_delimiter<'a> (input: &'a String, delim: char) -> impl Iterator<Item=i32> + '_
 {
-    let lines = input.split(delim)
+    let lines = input.trim().split(delim)
                 .map(|s| s.parse().unwrap());
     lines
 }
