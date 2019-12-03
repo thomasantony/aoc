@@ -83,8 +83,20 @@ fn main()
     let input = read_stdin();
     let data: Vec<i32> = parse_numbers_with_delimiter(&input, ',')
                              .collect();
-    let output = run_vm(&data, 12, 2);
-    println!("Output: {:?}", output[0]);
+    let output_a = run_vm(&data, 12, 2);
+    println!("Part A: {:?}", output_a[0]);
+    
+    for noun in 0..99
+    {
+        for verb in 0..99
+        {
+            let output = run_vm(&data, noun, verb);
+            if output[0] == 19690720
+            {
+                println!("Part B: {}", noun*100 + verb);
+            }
+        }
+    }
 }
 
 
