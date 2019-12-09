@@ -83,11 +83,11 @@ mod tests {
     use super::*;
     #[test]
     fn unit_tests_day_04_part_A() {
-        assert!(part_b_test("111111") == true);
-        assert!(part_b_test("111123") == true);
-        assert!(part_b_test("122345") == true);
+        assert!(part_a_test("111111") == true);
+        assert!(part_a_test("111123") == true);
+        assert!(part_a_test("122345") == true);
         // assert!(is_valid_password_A("223450") == false);
-        assert!(part_b_test("123789") == false);
+        assert!(part_a_test("123789") == false);
     }
     #[test]
     fn unit_tests_day_04_part_B() {
