@@ -10,12 +10,8 @@ fn part_a_test(password: &str) -> bool
 fn part_b_test(password: &str) -> bool
 {
     let mut i:usize = 0;
-    loop
+    while i < password.len()
     {
-        if i >= password.len()
-        {
-            break;
-        }
         let c = password.chars().nth(i).unwrap();
         let repeating_substr:Vec<char> = password[i..].chars()
                                         .take_while(|next_c| *next_c == c)
