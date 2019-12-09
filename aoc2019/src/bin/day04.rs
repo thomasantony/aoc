@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate itertools;
-
 fn pairwise_iter(password: &str, len: usize) -> impl Iterator<Item=(char, char)> + '_
 {
     password[..(len-1)].chars().zip(password[1..].chars())
@@ -32,30 +29,33 @@ fn part_b_test(password: &str) -> bool
     }
     return false;
 }
-fn get_numbers_with_increasing_digits(lo: i32, hi: i32) -> Vec<i32>
+fn get_feasible_number(numstr: String) -> String
+{
+    let first_digit = '0';
+    let init_state = (first_digit, true);
+    numstr.chars().scan(init_state, |state, x| {
+        let (last_digit, number_ok) = *state;
+        if x >= last_digit && number_ok
+        {
+            *state = (x, true);
+            Some(x)
+        }else{
+            // If one digit fails, then just fill in remaining digits
+            // by setting number_ok to false 
+            *state = (last_digit, false);
+            Some(last_digit)
+        }
+    }).collect::<String>()
+}
+fn get_numbers_with_increasing_digits(lo: i32, hi: i32) -> Vec<String>
 {
     let mut output = Vec::new();
     let mut num = lo;
     while num <= hi
     {
-        let numstr = num.to_string();
-        let first = numstr.chars().nth(0).unwrap();
-        let valid_chars = numstr.chars().scan((first, true), |state, x| {
-            let (last_digit, number_ok) = *state;
-            if x >= last_digit && number_ok
-            {
-                *state = (x, true);
-                Some(x)
-            }else{
-                // If one digit fails, then just fill in remaining digits
-                *state = (last_digit, false);
-                Some(last_digit)
-            }
-        });
-        let numstr = valid_chars.collect::<String>();
-
+        let numstr = get_feasible_number(num.to_string());
         num = numstr.parse().unwrap();
-        output.push(num);
+        output.push(numstr);
         num += 1;
     }
     output
@@ -68,11 +68,9 @@ fn main()
     let candidates = get_numbers_with_increasing_digits(min_val, max_val);
     
     let answer_a = candidates.iter()
-                        .map(|n| n.to_string())
                         .filter(|numstr| part_a_test(&numstr))
                         .count();
     let answer_b = candidates.iter()
-                        .map(|n| n.to_string())
                         .filter(|numstr| part_b_test(&numstr))
                         .count();
     println!("Part A: {}", answer_a);
@@ -82,7 +80,17 @@ fn main()
 mod tests {
     use super::*;
     #[test]
-    fn unit_tests_day_04_part_A() {
+    fn unit_tests_day_04_get_feasible_number()
+    {
+        assert_eq!(get_feasible_number("111111".to_string()), "111111");
+        assert_eq!(get_feasible_number("123456".to_string()), "123456");
+        assert_eq!(get_feasible_number("121111".to_string()), "122222");
+        assert_eq!(get_feasible_number("123111".to_string()), "123333");
+        assert_eq!(get_feasible_number("123411".to_string()), "123444");
+        assert_eq!(get_feasible_number("123451".to_string()), "123455");
+    }
+    #[test]
+    fn unit_tests_day_04_part_a() {
         assert!(part_a_test("111111") == true);
         assert!(part_a_test("111123") == true);
         assert!(part_a_test("122345") == true);
@@ -90,7 +98,7 @@ mod tests {
         assert!(part_a_test("123789") == false);
     }
     #[test]
-    fn unit_tests_day_04_part_B() {
+    fn unit_tests_day_04_part_b() {
         assert!(part_b_test("112233") == true);
         assert!(part_b_test("111122") == true);
         assert!(part_b_test("123444") == false);
