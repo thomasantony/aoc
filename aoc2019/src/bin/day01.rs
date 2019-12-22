@@ -7,11 +7,9 @@ fn calc_fuel(mass: i32) -> i32 {
 fn calc_fuel_cumulative(mass: i32) -> i32 {
     let mut fuel = 0;
     let mut input_mass = mass;
-    loop
-    {
+    loop {
         let new_fuel = calc_fuel(input_mass);
-        if new_fuel <= 0
-        {
+        if new_fuel <= 0 {
             break;
         }
         fuel += new_fuel;
@@ -20,14 +18,13 @@ fn calc_fuel_cumulative(mass: i32) -> i32 {
     fuel
 }
 
-fn main()
-{
+fn main() {
     let input = read_stdin();
     let masses = parse_numbers(&input);
 
     let mut total_a = 0;
     let mut total_b = 0;
-    
+
     for mass in masses {
         total_a += calc_fuel(mass);
         total_b += calc_fuel_cumulative(mass);
