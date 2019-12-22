@@ -27,7 +27,7 @@ fn main()
 mod tests {
     use super::*;
     #[test]
-    fn unit_tests_day_02() {
+    fn unit_tests_day_05() {
         assert_eq!(run_vm(&vec![1,0,0,0,99], 0, 0), vec![2,0,0,0,99]);
         assert_eq!(run_vm(&vec![2,3,0,3,99], 3, 0), vec![2,3,0,6,99]);
         assert_eq!(run_vm(&vec![2,4,4,5,99,0], 4, 4), vec![2,4,4,5,99,9801]);
