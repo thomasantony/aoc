@@ -20,7 +20,6 @@ impl Parameter {
     {
         match *self {
             Parameter::Position(addr) => {
-                println!("Wrote {} to address {}", value, addr);
                 memory[addr] = value;
                 Ok(())
             },
@@ -35,6 +34,10 @@ pub enum OpCodeType {
     Mul,
     ReadFromAddr,
     StoreToAddr,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
     Halt
 }
 
@@ -50,8 +53,13 @@ pub struct ParameterModes(Vec<ParameterMode>);
 #[derive(Debug)]
 pub struct OpCode {
     kind: OpCodeType,
-    parameter_modes: Vec<ParameterMode>,
-    validated: bool
+    parameter_modes: Vec<ParameterMode>
+}
+pub struct OpCodeDef
+{
+    pub opcode_type: OpCodeType,
+    pub parameter_count: u32,
+    pub runner: fn(&mut IntComputer, Vec<ParameterMode>)
 }
 
 impl TryFrom<i32> for OpCodeType {
@@ -63,6 +71,10 @@ impl TryFrom<i32> for OpCodeType {
             2 => Ok(OpCodeType::Mul),
             3 => Ok(OpCodeType::StoreToAddr),
             4 => Ok(OpCodeType::ReadFromAddr),
+            5 => Ok(OpCodeType::JumpIfTrue),
+            6 => Ok(OpCodeType::JumpIfFalse),
+            7 => Ok(OpCodeType::LessThan),
+            8 => Ok(OpCodeType::Equals),
             99 => Ok(OpCodeType::Halt),
             _ => Err(anyhow!("Invalid opcode {}", opcode_int))
         }
@@ -90,8 +102,7 @@ impl TryFrom<i32> for OpCode {
         let parameter_modes = ParameterModes::from(opcode_int);
         Ok(OpCode{
             kind: opcode_type,
-            parameter_modes: parameter_modes.0,
-            validated: false
+            parameter_modes: parameter_modes.0
         })
     }
 }
@@ -102,8 +113,12 @@ impl OpCode {
             OpCodeType::Halt => 0,
             OpCodeType::Add => 3,
             OpCodeType::Mul => 3,
-            OpCodeType::ReadFromAddr => 3,
-            OpCodeType::StoreToAddr => 3
+            OpCodeType::ReadFromAddr => 1,
+            OpCodeType::StoreToAddr => 1,
+            OpCodeType::JumpIfTrue => 2,
+            OpCodeType::JumpIfFalse => 2,
+            OpCodeType::LessThan => 3,
+            OpCodeType::Equals => 3,
         };
         let specified_param_count = self.parameter_modes.len() as i32;
 
@@ -125,8 +140,7 @@ impl OpCode {
             kind: self.kind,
             parameter_modes: self.parameter_modes.into_iter()
                             .chain(unspecified_modes.into_iter())
-                            .collect(),
-            validated: true
+                            .collect()
         })
     }
 }
@@ -142,7 +156,7 @@ pub enum CpuState
 pub struct IntComputer {
     cpu_state: CpuState,
     memory: Vec<i32>,
-    ip: i32,
+    ip: usize,
     input: i32,
     output: i32
 }
@@ -160,14 +174,14 @@ impl IntComputer
     pub fn parse_parameters(&self, parameter_modes: Vec<ParameterMode>)
         -> Vec<Parameter>
     {
-        let ip = self.ip as usize;
+        let ip = self.ip;
         let parameters = parameter_modes.iter().enumerate()
-        .map(|(i, mode)|{
-            match mode {
-                ParameterMode::Position => Parameter::Position(self.memory[ip+1+i] as usize),
-                ParameterMode::Immediate => Parameter::Immediate(self.memory[ip+1+i])
-            }
-        })
+            .map(|(i, mode)|{
+                match mode {
+                    ParameterMode::Position => Parameter::Position(self.memory[ip+1+i] as usize),
+                    ParameterMode::Immediate => Parameter::Immediate(self.memory[ip+1+i])
+                }
+            })
         .collect::<Vec<Parameter>>();
         parameters
     }
@@ -194,18 +208,25 @@ impl IntComputer
         self.ip = 0;
         while self.cpu_state != CpuState::HALTED
         {
-            let opcode_int = self.memory[self.ip as usize];
+            
+            let opcode_int = self.memory[self.ip];
             let opcode = OpCode::try_from(opcode_int)
                         .expect("Error parsing opcode")
                         .validate()
                         .expect("Error validating opcode");
+            
             let parameters = self.parse_parameters(opcode.parameter_modes);
+            // println!("{}, Opcode: {:?}, {:?}", self.ip, &opcode.kind, &parameters);
             match opcode.kind {
                 OpCodeType::Halt => halt_op(self),
                 OpCodeType::Add => add_op(self, parameters),
                 OpCodeType::Mul => mul_op(self, parameters),
                 OpCodeType::StoreToAddr => save_op(self, parameters),
-                OpCodeType::ReadFromAddr => read_op(self, parameters)
+                OpCodeType::ReadFromAddr => read_op(self, parameters),
+                OpCodeType::JumpIfTrue => jump_if_true_op(self, parameters),
+                OpCodeType::JumpIfFalse => jump_if_false_op(self, parameters),
+                OpCodeType::LessThan => less_than_op(self, parameters),
+                OpCodeType::Equals => equal_op(self, parameters),
             };
         }
         (self.memory.clone(), self.output)
@@ -240,45 +261,57 @@ fn save_op(vm: &mut IntComputer, parameters: Vec<Parameter>)
 {
     parameters[0].write(&mut vm.memory, vm.input)
                  .expect("Invalid output parameter for save_op()");
+    vm.ip += 2;
 }
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>)
 {
-    if let Parameter::Position(_) = &parameters[0]
+    vm.output = parameters[0].read(&vm.memory);
+    vm.ip += 2;
+}
+
+fn jump_if_true_op(vm: &mut IntComputer, parameters: Vec<Parameter>)
+{
+    if parameters[0].read(&vm.memory) != 0
     {
-        vm.output = parameters[0].read(&vm.memory);
+        let dst_addr = parameters[1].read(&vm.memory) as usize;
+        vm.ip = dst_addr;
     }else{
-        panic!("Immediate mode parameter given to read_op()");
+        vm.ip += 3;
     }
+}
+fn jump_if_false_op(vm: &mut IntComputer, parameters: Vec<Parameter>)
+{
+    if parameters[0].read(&vm.memory) == 0
+    {
+        let dst_addr = parameters[1].read(&vm.memory) as usize;
+        vm.ip = dst_addr;
+    }else{
+        vm.ip += 3;
+    }
+}
+fn less_than_op(vm: &mut IntComputer, parameters: Vec<Parameter>)
+{
+    let param1 = parameters[0].read(&vm.memory);
+    let param2 = parameters[1].read(&vm.memory);
+    let output = (param1 < param2) as i32;
+    parameters[2].write(&mut vm.memory, output)
+                 .expect("Failed to write to memory");
+    vm.ip += 4;
+}
+fn equal_op(vm: &mut IntComputer, parameters: Vec<Parameter>)
+{
+    let param1 = parameters[0].read(&vm.memory);
+    let param2 = parameters[1].read(&vm.memory);
+    let output = (param1 == param2) as i32;
+    parameters[2].write(&mut vm.memory, output)
+                 .expect("Failed to write to memory");
+    vm.ip += 4;
 }
 
 fn halt_op(vm: &mut IntComputer)
 {
     vm.cpu_state = CpuState::HALTED;
 }
-
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     #[test]
-//     fn unit_test_parameter_modes() {
-//         assert_eq!(parse_compound_opcode(01), (OpCodeType::Add, 
-//                     vec![ParameterMode::Position,
-//                          ParameterMode::Position,
-//                          ParameterMode::Position]));
-//         assert_eq!(parse_compound_opcode(1101), (OpCodeType::Add, 
-//                     vec![ParameterMode::Immediate,
-//                          ParameterMode::Immediate,
-//                          ParameterMode::Position]));
-//         assert_eq!(parse_compound_opcode(1001), (OpCodeType::Add, vec![
-//                          ParameterMode::Position,
-//                          ParameterMode::Immediate,
-//                          ParameterMode::Position]));
-//         assert_eq!(parse_compound_opcode(99), (OpCodeType::Halt, vec![]));
-
-//     }
-// }
-
 
 #[cfg(test)]
 mod tests {
