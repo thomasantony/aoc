@@ -61,6 +61,7 @@ pub struct OpCodeDef {
     pub parameter_count: u32,
     pub runner: fn(&mut IntComputer, Vec<ParameterMode>),
 }
+type OpCodeFn = fn(&mut IntComputer, Vec<Parameter>);
 
 impl TryFrom<i32> for OpCodeType {
     type Error = anyhow::Error;
@@ -97,6 +98,13 @@ impl From<i32> for ParameterModes {
         )
     }
 }
+impl ParameterModes 
+{
+    pub fn get_by_index(&self, index: usize) -> &ParameterMode
+    {
+        self.0.get(index).unwrap_or(&ParameterMode::Position)
+    }
+}
 
 impl TryFrom<i32> for OpCode {
     type Error = anyhow::Error;
@@ -106,44 +114,6 @@ impl TryFrom<i32> for OpCode {
         Ok(OpCode {
             kind: opcode_type,
             parameter_modes: parameter_modes.0,
-        })
-    }
-}
-
-impl OpCode {
-    pub fn validate(self) -> Result<Self> {
-        let required_param_count = match self.kind {
-            OpCodeType::Halt => 0,
-            OpCodeType::Add => 3,
-            OpCodeType::Mul => 3,
-            OpCodeType::ReadFromAddr => 1,
-            OpCodeType::StoreToAddr => 1,
-            OpCodeType::JumpIfTrue => 2,
-            OpCodeType::JumpIfFalse => 2,
-            OpCodeType::LessThan => 3,
-            OpCodeType::Equals => 3,
-        };
-        let specified_param_count = self.parameter_modes.len() as i32;
-
-        if required_param_count < specified_param_count {
-            Err(anyhow!("Too many parameters specified in opcode"))?
-        }
-
-        let unspecified_param_count = required_param_count - specified_param_count;
-        let unspecified_mode_chars = "0".repeat(unspecified_param_count as usize);
-        let unspecified_modes = unspecified_mode_chars.chars().map(|m| match m {
-            '0' => ParameterMode::Position,
-            '1' => ParameterMode::Immediate,
-            _ => panic!("Invalid parameter mode in opcode"),
-        });
-
-        Ok(OpCode {
-            kind: self.kind,
-            parameter_modes: self
-                .parameter_modes
-                .into_iter()
-                .chain(unspecified_modes.into_iter())
-                .collect(),
         })
     }
 }
@@ -172,10 +142,10 @@ impl IntComputer {
             output: 0,
         }
     }
-    pub fn parse_parameters(&self, parameter_modes: Vec<ParameterMode>) -> Vec<Parameter> {
+    pub fn parse_parameters(&self, parameter_count: usize, parameter_modes: ParameterModes) -> Vec<Parameter> {
         let ip = self.ip;
-        let parameters = parameter_modes
-            .iter()
+        let parameters = (0..parameter_count)
+            .map(|i| parameter_modes.get_by_index(i))
             .enumerate()
             .map(|(i, mode)| match mode {
                 ParameterMode::Position => Parameter::Position(self.memory[ip + 1 + i] as usize),
@@ -205,24 +175,24 @@ impl IntComputer {
         self.ip = 0;
         while self.cpu_state != CpuState::HALTED {
             let opcode_int = self.memory[self.ip];
-            let opcode = OpCode::try_from(opcode_int)
-                .expect("Error parsing opcode")
-                .validate()
-                .expect("Error validating opcode");
-
-            let parameters = self.parse_parameters(opcode.parameter_modes);
+            let opcode = OpCodeType::try_from(opcode_int)
+                .expect("Error parsing opcode");
+            let parameter_modes = ParameterModes::from(opcode_int);
+            
             // println!("{}, Opcode: {:?}, {:?}", self.ip, &opcode.kind, &parameters);
-            match opcode.kind {
-                OpCodeType::Halt => halt_op(self),
-                OpCodeType::Add => add_op(self, parameters),
-                OpCodeType::Mul => mul_op(self, parameters),
-                OpCodeType::StoreToAddr => save_op(self, parameters),
-                OpCodeType::ReadFromAddr => read_op(self, parameters),
-                OpCodeType::JumpIfTrue => jump_if_true_op(self, parameters),
-                OpCodeType::JumpIfFalse => jump_if_false_op(self, parameters),
-                OpCodeType::LessThan => less_than_op(self, parameters),
-                OpCodeType::Equals => equal_op(self, parameters),
+            let (runner, parameter_count): (OpCodeFn, usize) = match opcode {
+                OpCodeType::Halt => (halt_op, 0),
+                OpCodeType::Add => (add_op, 3),
+                OpCodeType::Mul => (mul_op, 3),
+                OpCodeType::StoreToAddr => (save_op, 1),
+                OpCodeType::ReadFromAddr => (read_op, 1),
+                OpCodeType::JumpIfTrue => (jump_if_true_op, 2),
+                OpCodeType::JumpIfFalse => (jump_if_false_op, 2),
+                OpCodeType::LessThan => (less_than_op, 3),
+                OpCodeType::Equals => (equal_op, 3),
             };
+            let parameters = self.parse_parameters(parameter_count, parameter_modes);
+            runner(self, parameters);
         }
         (self.memory.clone(), self.output)
     }
@@ -297,7 +267,7 @@ fn equal_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     vm.ip += 4;
 }
 
-fn halt_op(vm: &mut IntComputer) {
+fn halt_op(vm: &mut IntComputer, _ : Vec<Parameter>) {
     vm.cpu_state = CpuState::HALTED;
 }
 
