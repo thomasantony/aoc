@@ -56,11 +56,7 @@ pub struct OpCode {
     kind: OpCodeType,
     parameter_modes: Vec<ParameterMode>,
 }
-pub struct OpCodeDef {
-    pub opcode_type: OpCodeType,
-    pub parameter_count: u32,
-    pub runner: fn(&mut IntComputer, Vec<ParameterMode>),
-}
+
 type OpCodeFn = fn(&mut IntComputer, Vec<Parameter>);
 
 impl TryFrom<i32> for OpCodeType {
@@ -98,10 +94,8 @@ impl From<i32> for ParameterModes {
         )
     }
 }
-impl ParameterModes 
-{
-    pub fn get_by_index(&self, index: usize) -> &ParameterMode
-    {
+impl ParameterModes {
+    pub fn get_by_index(&self, index: usize) -> &ParameterMode {
         self.0.get(index).unwrap_or(&ParameterMode::Position)
     }
 }
@@ -129,8 +123,8 @@ pub struct IntComputer {
     cpu_state: CpuState,
     memory: Vec<i32>,
     ip: usize,
-    input: i32,
-    output: i32,
+    input: Option<i32>,
+    output: Option<i32>,
 }
 impl IntComputer {
     pub fn new() -> Self {
@@ -138,11 +132,15 @@ impl IntComputer {
             cpu_state: CpuState::RUNNING,
             memory: Vec::new(),
             ip: 0,
-            input: 0,
-            output: 0,
+            input: None,
+            output: None,
         }
     }
-    pub fn parse_parameters(&self, parameter_count: usize, parameter_modes: ParameterModes) -> Vec<Parameter> {
+    pub fn parse_parameters(
+        &self,
+        parameter_count: usize,
+        parameter_modes: ParameterModes,
+    ) -> Vec<Parameter> {
         let ip = self.ip;
         let parameters = (0..parameter_count)
             .map(|i| parameter_modes.get_by_index(i))
@@ -159,7 +157,7 @@ impl IntComputer {
         self
     }
     pub fn set_input(&mut self, value: i32) -> &mut Self {
-        self.input = value;
+        self.input = Some(value);
         self
     }
     pub fn set_noun(&mut self, noun: i32) -> &mut Self {
@@ -170,15 +168,14 @@ impl IntComputer {
         self.memory[2] = verb;
         self
     }
-    pub fn execute(&mut self) -> (Vec<i32>, i32) {
+    pub fn execute(&mut self) -> i32 {
         self.cpu_state = CpuState::RUNNING;
         self.ip = 0;
         while self.cpu_state != CpuState::HALTED {
             let opcode_int = self.memory[self.ip];
-            let opcode = OpCodeType::try_from(opcode_int)
-                .expect("Error parsing opcode");
+            let opcode = OpCodeType::try_from(opcode_int).expect("Error parsing opcode");
             let parameter_modes = ParameterModes::from(opcode_int);
-            
+
             // println!("{}, Opcode: {:?}, {:?}", self.ip, &opcode.kind, &parameters);
             let (runner, parameter_count): (OpCodeFn, usize) = match opcode {
                 OpCodeType::Halt => (halt_op, 0),
@@ -194,7 +191,7 @@ impl IntComputer {
             let parameters = self.parse_parameters(parameter_count, parameter_modes);
             runner(self, parameters);
         }
-        (self.memory.clone(), self.output)
+        self.output.unwrap_or(self.memory[0])
     }
     pub fn read_memory(&self) -> Vec<i32> {
         self.memory.clone()
@@ -223,12 +220,16 @@ fn mul_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
 
 fn save_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     parameters[0]
-        .write(&mut vm.memory, vm.input)
+        .write(
+            &mut vm.memory,
+            vm.input
+                .expect("Attempted to read input with no input specified"),
+        )
         .expect("Invalid output parameter for save_op()");
     vm.ip += 2;
 }
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    vm.output = parameters[0].read(&vm.memory);
+    vm.output = Some(parameters[0].read(&vm.memory));
     vm.ip += 2;
 }
 
@@ -267,7 +268,7 @@ fn equal_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     vm.ip += 4;
 }
 
-fn halt_op(vm: &mut IntComputer, _ : Vec<Parameter>) {
+fn halt_op(vm: &mut IntComputer, _: Vec<Parameter>) {
     vm.cpu_state = CpuState::HALTED;
 }
 
@@ -281,37 +282,30 @@ mod tests {
             vm.load_program(&vec![1, 0, 0, 0, 99])
                 .set_noun(0)
                 .set_verb(0)
-                .execute()
-                .0,
-            vec![2, 0, 0, 0, 99]
+                .execute(),
+            2
         );
-        assert_eq!(
-            vm.load_program(&vec![2, 3, 0, 3, 99]).execute().0,
-            vec![2, 3, 0, 6, 99]
-        );
+        assert_eq!(vm.load_program(&vec![2, 3, 0, 3, 99]).execute(), 2);
         assert_eq!(
             vm.load_program(&vec![2, 4, 4, 5, 99, 0])
                 .set_noun(4)
                 .set_verb(4)
-                .execute()
-                .0,
-            vec![2, 4, 4, 5, 99, 9801]
+                .execute(),
+            2
         );
         assert_eq!(
             vm.load_program(&vec![1, 1, 1, 4, 99, 5, 6, 0, 99])
                 .set_noun(1)
                 .set_verb(1)
-                .execute()
-                .0,
-            vec![30, 1, 1, 4, 2, 5, 6, 0, 99]
+                .execute(),
+            30,
         );
         assert_eq!(
             vm.load_program(&vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50])
                 .set_noun(9)
                 .set_verb(10)
-                .execute()
-                .0,
-            vec![3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50]
+                .execute(),
+            3500
         );
     }
 }
