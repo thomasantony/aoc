@@ -14,6 +14,10 @@ pub fn read_stdin() -> String {
     buffer
 }
 
+pub fn get_lines<'a>(input: &'a String) -> impl Iterator<Item = &'a str> {
+    input.split_ascii_whitespace()
+}
+
 pub fn parse_numbers<'a>(input: &'a String) -> impl Iterator<Item = i32> + '_ {
     parse_numbers_with_delimiter(input, '\n')
 }
