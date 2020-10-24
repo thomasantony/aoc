@@ -15,7 +15,10 @@ impl Parameter {
         match *self {
             Parameter::Position(addr) => memory[addr],
             Parameter::Immediate(value) => value,
-            Parameter::Relative(offset) => memory[(relative_base as i64 + offset) as usize],
+            Parameter::Relative(offset) => {
+                let addr = (relative_base as i64 + offset) as usize;
+                memory[addr]
+            },
         }
     }
     fn write(&self, memory: &mut Vec<i64>, value: i64, relative_base: usize) -> Result<()> {
@@ -150,6 +153,11 @@ impl IntComputer {
             relative_base: 0,
         }
     }
+    /// Add more RAM
+    pub fn set_ram_size(&mut self, ram_size: usize)
+    {
+        self.memory.resize(ram_size, 0);
+    }
     pub fn parse_parameters(
         &self,
         parameter_count: usize,
@@ -168,7 +176,11 @@ impl IntComputer {
         parameters
     }
     pub fn load_program(&mut self, program: &Vec<i64>) -> &mut Self {
-        self.memory = program.clone();
+        let size = program.len();
+        if self.memory.len() < size{
+            self.set_ram_size(size+128);
+        }
+        self.memory.splice(..size, program.clone().into_iter());
         self
     }
     pub fn push_input(&mut self, value: i64) -> &mut Self {
@@ -266,7 +278,9 @@ fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     }
 }
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    vm.output.push(parameters[0].read(&vm.memory, vm.relative_base));
+    let val = parameters[0].read(&vm.memory, vm.relative_base);
+    vm.output.push(val);
+    println!("appending {} to output", val);
     vm.ip += 2;
 }
 
@@ -359,5 +373,12 @@ mod tests {
                 .execute(),
                 vec![1125899906842624]
         );
+        // let mut vm = IntComputer::new();
+        // vm.set_ram_size(512);
+        // assert_eq!(
+        //     vm.load_program(&vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99])
+        //         .execute(),
+        //     vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
+        // )
     }
 }
