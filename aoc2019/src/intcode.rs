@@ -1,6 +1,6 @@
 use std::convert::From;
 use std::convert::TryFrom;
-
+use std::collections::VecDeque;
 use anyhow::{anyhow, Result};
 
 #[derive(Debug)]
@@ -123,7 +123,7 @@ pub struct IntComputer {
     cpu_state: CpuState,
     memory: Vec<i32>,
     ip: usize,
-    input: Option<i32>,
+    input: VecDeque<i32>,
     output: Option<i32>,
 }
 impl IntComputer {
@@ -132,7 +132,7 @@ impl IntComputer {
             cpu_state: CpuState::RUNNING,
             memory: Vec::new(),
             ip: 0,
-            input: None,
+            input: VecDeque::new(),
             output: None,
         }
     }
@@ -156,8 +156,8 @@ impl IntComputer {
         self.memory = program.clone();
         self
     }
-    pub fn set_input(&mut self, value: i32) -> &mut Self {
-        self.input = Some(value);
+    pub fn push_input(&mut self, value: i32) -> &mut Self {
+        self.input.push_back(value);
         self
     }
     pub fn set_noun(&mut self, noun: i32) -> &mut Self {
@@ -181,7 +181,7 @@ impl IntComputer {
                 OpCodeType::Halt => (halt_op, 0),
                 OpCodeType::Add => (add_op, 3),
                 OpCodeType::Mul => (mul_op, 3),
-                OpCodeType::StoreToAddr => (save_op, 1),
+                OpCodeType::StoreToAddr => (store_op, 1),
                 OpCodeType::ReadFromAddr => (read_op, 1),
                 OpCodeType::JumpIfTrue => (jump_if_true_op, 2),
                 OpCodeType::JumpIfFalse => (jump_if_false_op, 2),
@@ -218,14 +218,13 @@ fn mul_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     vm.ip += 4;
 }
 
-fn save_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
+fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     parameters[0]
         .write(
             &mut vm.memory,
-            vm.input
-                .expect("Attempted to read input with no input specified"),
+            vm.input.pop_front().expect("Attempted to read input with no input specified"),
         )
-        .expect("Invalid output parameter for save_op()");
+        .expect("Invalid output parameter for store_op()");
     vm.ip += 2;
 }
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
