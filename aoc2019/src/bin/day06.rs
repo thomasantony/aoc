@@ -1,5 +1,6 @@
 use ::aoc2019::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use crate::tree::Tree;
 
 pub struct Orbit {
     center: String,
@@ -12,27 +13,29 @@ pub struct Body {
     count: Option<i32>
 }
 
-use crate::graph::{Graph, NodeData, NodeIndex, EdgeData};
-
-type OrbitGraph = (HashMap<String, NodeIndex>, Graph);
-fn create_orbit_graph<'a>(orbits: Vec<Orbit>) -> OrbitGraph {
-    let mut graph = Graph::new();
+type OrbitGraph = (Vec<String>, Tree);
+fn create_orbit_tree<'a>(orbits: Vec<Orbit>) -> OrbitGraph {
+    let mut tree = Tree::new();
     let mut bodies = HashMap::new();
+    let mut bodies_vec = Vec::new();
+
     for orbit in orbits.into_iter() 
     {
         if !bodies.contains_key(&orbit.center)
         {
-            bodies.insert(orbit.center.clone(), graph.add_node());
+            bodies.insert(orbit.center.clone(), tree.add_node());
+            bodies_vec.push(orbit.center.clone());
         }
         if !bodies.contains_key(&orbit.orbiter)
         {
-            bodies.insert(orbit.orbiter.clone(), graph.add_node());
+            bodies.insert(orbit.orbiter.clone(), tree.add_node());
+            bodies_vec.push(orbit.orbiter.clone());
         }
         let center_node = * bodies.get(&orbit.center).unwrap();
         let orbit_node = * bodies.get(&orbit.orbiter).unwrap();
-        graph.add_edge(center_node, orbit_node);
+        tree.set_parent(orbit_node, center_node);
     }
-    (bodies, graph)
+    (bodies_vec, tree)
 }
 fn create_orbit_hashmap(orbits: &Vec<Orbit>) -> HashMap<String, Body> {
     let mut graph = HashMap::new();
@@ -69,18 +72,33 @@ fn parse_data(line: &str) -> Option<Orbit>
 fn find_transfer_length(graph: &OrbitGraph, start: &str, dest: &str) -> usize
 {
     let bodies = &graph.0;
-    let graph = &graph.1;
+    let tree = &graph.1;
 
-    println!("Bodies: {:?}", bodies);
-    let start_node = *bodies.get(start).expect("Start node not found in graph");
-    println!("start node is {}", start_node);
+    let start_node = bodies.iter().position(|x| x==start).expect("Start node not found in graph");
+    let goal_node = bodies.iter().position(|x| x==dest).expect("Goal node not found in graph");
+
+    let mut path_1: Vec<&String> = tree.ancestors(start_node).map(|i| &bodies[i]).collect();
+    let mut path_2: Vec<&String> = tree.ancestors(goal_node).map(|i| &bodies[i]).collect();
+
+    path_1.reverse();
+    path_2.reverse();
     
-    let goal_node = *bodies.get(dest).expect("Goal node not found in graph");
-    println!("goal node is {}", goal_node);
+    let mut last_common_node = (0, &path_1[0]);
+    for ((i1, node1), node2) in path_1.iter().enumerate().zip(path_2.iter())
+    {
+        if node1 != node2
+        {
+            break;
+        }else{
+            last_common_node = (i1, &node1);
+        }
+    }
 
-    let path = graph.djikstra(start_node, goal_node);
-    println!("PATH is {:?}", path);
-    path.len()
+    let common_node_index = last_common_node.0;
+    let path_len_1 = path_1.len() - common_node_index;
+    let path_len_2 = path_2.len() - common_node_index;
+    let path_len = path_len_1 + path_len_2;
+    path_len - std::cmp::min(path_len, 4)
 }
 
 fn main() {
@@ -107,9 +125,9 @@ fn main() {
 
     println!("Part A: {}", total);
 
-    let graph = create_orbit_graph(orbits);
+    let graph = create_orbit_tree(orbits);
     let path_len = find_transfer_length(&graph, "YOU", "SAN");
-    println!("Part B: {}", path_len - 2);
+    println!("Part B: {}", path_len);
 }
 
 #[cfg(test)]
@@ -127,19 +145,21 @@ mod tests {
             "D)I",
             "E)J",
             "J)K",
-            "K)L"];
+            "K)L",
+            "K)YOU",
+            "I)SAN"];
         data_str.into_iter().map(parse_data).flatten().collect()
     }
-    fn demo_graph() -> OrbitGraph
+    fn demo_tree() -> OrbitGraph
     {
         let orbits = demo_orbits();
-        create_orbit_graph(orbits)
+        create_orbit_tree(orbits)
     }
     #[test]
     fn test_day06_find_path_length()
     {
-        let graph = demo_graph();
-        assert_eq!(find_transfer_length(&graph, "COM", "COM"), 1);
-        assert_eq!(find_transfer_length(&graph, "COM", "B"), 2);
+        let graph = demo_tree();
+        assert_eq!(find_transfer_length(&graph, "COM", "COM"), 0);
+        assert_eq!(find_transfer_length(&graph, "YOU", "SAN"), 4);
     }
 }
