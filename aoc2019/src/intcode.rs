@@ -219,10 +219,11 @@ fn mul_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
 }
 
 fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
+    let val = vm.input.pop_front().expect("Attempted to read input with no input specified");
     parameters[0]
         .write(
             &mut vm.memory,
-            vm.input.pop_front().expect("Attempted to read input with no input specified"),
+            val
         )
         .expect("Invalid output parameter for store_op()");
     vm.ip += 2;
