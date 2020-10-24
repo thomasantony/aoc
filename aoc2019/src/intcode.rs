@@ -121,7 +121,7 @@ pub enum CpuState {
 
 #[derive(Debug)]
 pub struct IntComputer {
-    cpu_state: CpuState,
+    pub cpu_state: CpuState,
     memory: Vec<i32>,
     ip: usize,
     input: VecDeque<i32>,
@@ -174,8 +174,13 @@ impl IntComputer {
         self.cpu_state == CpuState::HALTED
     }
     pub fn execute(&mut self) -> i32 {
+        // Reset instruction pointer if we are not waiting on input, else just resume
+        // from last position
+        if self.cpu_state != CpuState::WAITING {
+            self.ip = 0;
+        }
         self.cpu_state = CpuState::RUNNING;
-        self.ip = 0;
+        
         while self.cpu_state == CpuState::RUNNING {
             let opcode_int = self.memory[self.ip];
             let opcode = OpCodeType::try_from(opcode_int).expect("Error parsing opcode");
