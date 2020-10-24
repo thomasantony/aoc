@@ -156,6 +156,18 @@ impl IntComputer {
     /// Add more RAM
     pub fn set_ram_size(&mut self, ram_size: usize)
     {
+        self.memory.clear();
+        self.memory.resize(ram_size, 0);
+    }
+    // Resets VM to plain state
+    pub fn reset(&mut self)
+    {
+        self.relative_base = 0;
+        self.input.clear();
+        self.output.clear();
+
+        let ram_size = self.memory.len();
+        self.memory.clear();
         self.memory.resize(ram_size, 0);
     }
     pub fn parse_parameters(
@@ -280,7 +292,6 @@ fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     let val = parameters[0].read(&vm.memory, vm.relative_base);
     vm.output.push(val);
-    println!("appending {} to output", val);
     vm.ip += 2;
 }
 
