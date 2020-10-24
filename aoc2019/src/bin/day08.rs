@@ -1,13 +1,13 @@
 use ::aoc2019::{parse_digits, read_stdin};
 
-type ImageLayer = Vec<Vec<u32>>;
-
 #[derive(Debug, PartialEq)]
 pub struct Image {
     pub image_data: Vec<u32>,
-    pub layers: Vec<ImageLayer>,
-    pub shape: (usize, usize)
+    pub shape: (usize, usize),
+    num_pixels_in_layer: usize
 }
+
+type Layer<'a> = &'a [u32];
 
 impl Image {
     pub fn new(shape: (usize, usize), data: Vec<u32>) -> Self
@@ -15,30 +15,35 @@ impl Image {
         let num_pixels = data.len();
         let num_pixels_in_layer = shape.0 * shape.1;
         assert!(num_pixels % num_pixels_in_layer == 0, "Invalid number of pixels");
-
-        let mut layers = Vec::new();
-        for layer_data in data.chunks(num_pixels_in_layer)
-        {
-            let rows = layer_data
-                            .chunks(shape.0)
-                            .map(Vec::from)
-                            .collect();
-            layers.push(rows);
-        }
+        
         Self {
             image_data: data,
-            layers,
-            shape
+            shape,
+            num_pixels_in_layer
         }
     }
     pub fn layers<'a>(&'a self) -> impl Iterator<Item=Layer<'a>>
     {
-        let layer_data_size = self.shape.0 * self.shape.1;
-        self.image_data.chunks(layer_data_size)
+        self.image_data.chunks(self.num_pixels_in_layer)
+    }
+
+    pub fn decode(&self) -> Vec<Vec<u32>>
+    {
+        // Fill with transparent pixels initially
+        let mut output_layer: Vec<u32> = vec![2; self.num_pixels_in_layer];
+        
+        for layer in self.layers() {
+            for (i, &pixel) in layer.iter().enumerate() {
+                // Output layer is transparent, so try to fill it
+                if output_layer[i] == 2 && pixel != 2{
+                    output_layer[i] = pixel;
+                }
+            }
+        }
+        output_layer.chunks(self.shape.0).map(Vec::from).collect()
     }
 }
 
-type Layer<'a> = &'a [u32];
 
 fn main() {
     let shape = (25, 6);
@@ -54,6 +59,22 @@ fn main() {
     let number_of_ones = layer_with_fewest_zeros.iter().filter(|&&p|p==1).count();
     let number_of_twos = layer_with_fewest_zeros.iter().filter(|&&p|p==2).count();
     println!("Part A: {}", number_of_ones * number_of_twos);
+
+    let decoded_image = im.decode();
+    println!("Part B:");
+    for row in decoded_image.iter()
+    {
+        for &pixel in row
+        {
+            let display = if pixel == 1 {
+                '#'
+            } else {
+                ' '
+            };
+            print!("{}", display);
+        }
+        println!();
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -67,13 +88,17 @@ mod tests {
         let pixels: Vec<u32> = parse_digits(demo_input).collect();
         let image = Image::new(demo_shape, pixels.clone());
         assert_eq!(image, Image{image_data: pixels, 
-                                layers: vec![vec![vec![1,2,3], vec![4,5,6]],
-                                             vec![vec![7,8,9], vec![0,1,2]]
-                                ],
+                                num_pixels_in_layer: 6,
                                 shape: (3, 2)});
-
-        image.layers().map(|layer| {
-
-        })
+    }
+    #[test]
+    fn test_day08_decode()
+    {
+        let demo_input = "0222112222120000";
+        let demo_shape = (2, 2);
+        
+        let pixels: Vec<u32> = parse_digits(demo_input).collect();
+        let image = Image::new(demo_shape, pixels.clone());
+        assert_eq!(image.decode(), vec![vec![0, 1], vec![1, 0]]);
     }
 }
