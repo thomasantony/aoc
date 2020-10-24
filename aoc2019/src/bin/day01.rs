@@ -1,10 +1,10 @@
 use ::aoc2019::*;
 
-fn calc_fuel(mass: i32) -> i32 {
+fn calc_fuel(mass: i64) -> i64 {
     mass / 3 - 2
 }
 
-fn calc_fuel_cumulative(mass: i32) -> i32 {
+fn calc_fuel_cumulative(mass: i64) -> i64 {
     let mut fuel = 0;
     let mut input_mass = mass;
     loop {

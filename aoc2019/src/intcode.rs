@@ -6,17 +6,19 @@ use anyhow::{anyhow, Result};
 #[derive(Debug)]
 pub enum Parameter {
     Position(usize),
-    Immediate(i32),
+    Immediate(i64),
+    Relative(i64),
 }
 
 impl Parameter {
-    fn read(&self, memory: &Vec<i32>) -> i32 {
+    fn read(&self, memory: &Vec<i64>, relative_base: usize) -> i64 {
         match *self {
             Parameter::Position(addr) => memory[addr],
             Parameter::Immediate(value) => value,
+            Parameter::Relative(offset) => memory[(relative_base as i64 + offset) as usize],
         }
     }
-    fn write(&self, memory: &mut Vec<i32>, value: i32) -> Result<()> {
+    fn write(&self, memory: &mut Vec<i64>, value: i64, relative_base: usize) -> Result<()> {
         match *self {
             Parameter::Position(addr) => {
                 memory[addr] = value;
@@ -24,6 +26,11 @@ impl Parameter {
             }
             Parameter::Immediate(_) => {
                 Err(anyhow!("Attempted to write to immediate mode parameter"))
+            }
+            Parameter::Relative(offset) => {
+                let addr = (relative_base as i64 + offset) as usize;
+                memory[addr] = value;
+                Ok(())
             }
         }
     }
@@ -39,6 +46,7 @@ pub enum OpCodeType {
     JumpIfFalse,
     LessThan,
     Equals,
+    RelativeBaseOffset,
     Halt,
 }
 
@@ -46,6 +54,7 @@ pub enum OpCodeType {
 pub enum ParameterMode {
     Position,
     Immediate,
+    Relative,
 }
 
 #[derive(Debug)]
@@ -59,10 +68,10 @@ pub struct OpCode {
 
 type OpCodeFn = fn(&mut IntComputer, Vec<Parameter>);
 
-impl TryFrom<i32> for OpCodeType {
+impl TryFrom<i64> for OpCodeType {
     type Error = anyhow::Error;
-    fn try_from(opcode_int: i32) -> Result<OpCodeType> {
-        match opcode_int % 100 as i32 {
+    fn try_from(opcode_int: i64) -> Result<OpCodeType> {
+        match opcode_int % 100 as i64 {
             1 => Ok(OpCodeType::Add),
             2 => Ok(OpCodeType::Mul),
             3 => Ok(OpCodeType::StoreToAddr),
@@ -71,14 +80,15 @@ impl TryFrom<i32> for OpCodeType {
             6 => Ok(OpCodeType::JumpIfFalse),
             7 => Ok(OpCodeType::LessThan),
             8 => Ok(OpCodeType::Equals),
+            9 => Ok(OpCodeType::RelativeBaseOffset),
             99 => Ok(OpCodeType::Halt),
             _ => Err(anyhow!("Invalid opcode {}", opcode_int)),
         }
     }
 }
 
-impl From<i32> for ParameterModes {
-    fn from(opcode_int: i32) -> ParameterModes {
+impl From<i64> for ParameterModes {
+    fn from(opcode_int: i64) -> ParameterModes {
         ParameterModes(
             opcode_int
                 .to_string()
@@ -88,6 +98,7 @@ impl From<i32> for ParameterModes {
                 .map(|m| match m {
                     '0' => ParameterMode::Position,
                     '1' => ParameterMode::Immediate,
+                    '2' => ParameterMode::Relative,
                     _ => panic!("Invalid parameter mode in opcode"),
                 })
                 .collect::<Vec<ParameterMode>>(),
@@ -100,9 +111,9 @@ impl ParameterModes {
     }
 }
 
-impl TryFrom<i32> for OpCode {
+impl TryFrom<i64> for OpCode {
     type Error = anyhow::Error;
-    fn try_from(opcode_int: i32) -> Result<OpCode> {
+    fn try_from(opcode_int: i64) -> Result<OpCode> {
         let opcode_type = OpCodeType::try_from(opcode_int)?;
         let parameter_modes = ParameterModes::from(opcode_int);
         Ok(OpCode {
@@ -122,10 +133,11 @@ pub enum CpuState {
 #[derive(Debug)]
 pub struct IntComputer {
     pub cpu_state: CpuState,
-    memory: Vec<i32>,
+    memory: Vec<i64>,
     ip: usize,
-    input: VecDeque<i32>,
-    output: Option<i32>,
+    input: VecDeque<i64>,
+    output: Vec<i64>,
+    relative_base: usize,
 }
 impl IntComputer {
     pub fn new() -> Self {
@@ -134,7 +146,8 @@ impl IntComputer {
             memory: Vec::new(),
             ip: 0,
             input: VecDeque::new(),
-            output: None,
+            output: Vec::new(),
+            relative_base: 0,
         }
     }
     pub fn parse_parameters(
@@ -149,23 +162,24 @@ impl IntComputer {
             .map(|(i, mode)| match mode {
                 ParameterMode::Position => Parameter::Position(self.memory[ip + 1 + i] as usize),
                 ParameterMode::Immediate => Parameter::Immediate(self.memory[ip + 1 + i]),
+                ParameterMode::Relative => Parameter::Relative(self.memory[ip + 1 + i]),
             })
             .collect::<Vec<Parameter>>();
         parameters
     }
-    pub fn load_program(&mut self, program: &Vec<i32>) -> &mut Self {
+    pub fn load_program(&mut self, program: &Vec<i64>) -> &mut Self {
         self.memory = program.clone();
         self
     }
-    pub fn push_input(&mut self, value: i32) -> &mut Self {
+    pub fn push_input(&mut self, value: i64) -> &mut Self {
         self.input.push_back(value);
         self
     }
-    pub fn set_noun(&mut self, noun: i32) -> &mut Self {
+    pub fn set_noun(&mut self, noun: i64) -> &mut Self {
         self.memory[1] = noun;
         self
     }
-    pub fn set_verb(&mut self, verb: i32) -> &mut Self {
+    pub fn set_verb(&mut self, verb: i64) -> &mut Self {
         self.memory[2] = verb;
         self
     }
@@ -173,12 +187,13 @@ impl IntComputer {
     {
         self.cpu_state == CpuState::HALTED
     }
-    pub fn execute(&mut self) -> i32 {
+    pub fn execute(&mut self) -> Vec<i64> {
         // Reset instruction pointer if we are not waiting on input, else just resume
         // from last position
         if self.cpu_state != CpuState::WAITING {
             self.ip = 0;
         }
+        self.output = Vec::new();
         self.cpu_state = CpuState::RUNNING;
         
         while self.cpu_state == CpuState::RUNNING {
@@ -197,32 +212,38 @@ impl IntComputer {
                 OpCodeType::JumpIfFalse => (jump_if_false_op, 2),
                 OpCodeType::LessThan => (less_than_op, 3),
                 OpCodeType::Equals => (equal_op, 3),
+                OpCodeType::RelativeBaseOffset => (relative_base_offset_op, 1),
             };
             let parameters = self.parse_parameters(parameter_count, parameter_modes);
             runner(self, parameters);
         }
-        self.output.unwrap_or(self.memory[0])
+        if self.output.len() == 0
+        {
+            vec![self.memory[0]]
+        }else{
+            self.output.clone()
+        }
     }
-    pub fn read_memory(&self) -> Vec<i32> {
+    pub fn read_memory(&self) -> Vec<i64> {
         self.memory.clone()
     }
 }
 
 fn add_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    let param1 = parameters[0].read(&vm.memory);
-    let param2 = parameters[1].read(&vm.memory);
+    let param1 = parameters[0].read(&vm.memory, vm.relative_base);
+    let param2 = parameters[1].read(&vm.memory, vm.relative_base);
     parameters[2]
-        .write(&mut vm.memory, param1 + param2)
+        .write(&mut vm.memory, param1 + param2, vm.relative_base)
         .expect("Invalid output parameter for add()");
 
     vm.ip += 4;
 }
 
 fn mul_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    let param1 = parameters[0].read(&vm.memory);
-    let param2 = parameters[1].read(&vm.memory);
+    let param1 = parameters[0].read(&vm.memory, vm.relative_base);
+    let param2 = parameters[1].read(&vm.memory, vm.relative_base);
     parameters[2]
-        .write(&mut vm.memory, param1 * param2)
+        .write(&mut vm.memory, param1 * param2, vm.relative_base)
         .expect("Invalid output parameter for mul()");
 
     vm.ip += 4;
@@ -234,7 +255,8 @@ fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
         parameters[0]
         .write(
             &mut vm.memory,
-            val
+            val,
+            vm.relative_base
         )
         .expect("Invalid output parameter for store_op()");
         vm.ip += 2;
@@ -244,43 +266,48 @@ fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     }
 }
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    vm.output = Some(parameters[0].read(&vm.memory));
+    vm.output.push(parameters[0].read(&vm.memory, vm.relative_base));
     vm.ip += 2;
 }
 
 fn jump_if_true_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    if parameters[0].read(&vm.memory) != 0 {
-        let dst_addr = parameters[1].read(&vm.memory) as usize;
+    if parameters[0].read(&vm.memory, vm.relative_base) != 0 {
+        let dst_addr = parameters[1].read(&vm.memory, vm.relative_base) as usize;
         vm.ip = dst_addr;
     } else {
         vm.ip += 3;
     }
 }
 fn jump_if_false_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    if parameters[0].read(&vm.memory) == 0 {
-        let dst_addr = parameters[1].read(&vm.memory) as usize;
+    if parameters[0].read(&vm.memory, vm.relative_base) == 0 {
+        let dst_addr = parameters[1].read(&vm.memory, vm.relative_base) as usize;
         vm.ip = dst_addr;
     } else {
         vm.ip += 3;
     }
 }
 fn less_than_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    let param1 = parameters[0].read(&vm.memory);
-    let param2 = parameters[1].read(&vm.memory);
-    let output = (param1 < param2) as i32;
+    let param1 = parameters[0].read(&vm.memory, vm.relative_base);
+    let param2 = parameters[1].read(&vm.memory, vm.relative_base);
+    let output = (param1 < param2) as i64;
     parameters[2]
-        .write(&mut vm.memory, output)
+        .write(&mut vm.memory, output, vm.relative_base)
         .expect("Failed to write to memory");
     vm.ip += 4;
 }
 fn equal_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    let param1 = parameters[0].read(&vm.memory);
-    let param2 = parameters[1].read(&vm.memory);
-    let output = (param1 == param2) as i32;
+    let param1 = parameters[0].read(&vm.memory, vm.relative_base);
+    let param2 = parameters[1].read(&vm.memory, vm.relative_base);
+    let output = (param1 == param2) as i64;
     parameters[2]
-        .write(&mut vm.memory, output)
+        .write(&mut vm.memory, output, vm.relative_base)
         .expect("Failed to write to memory");
     vm.ip += 4;
+}
+fn relative_base_offset_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
+    assert!(matches!(parameters[0], Parameter::Immediate(_)));
+    let param1 = parameters[0].read(&vm.memory, vm.relative_base);
+    vm.relative_base = ((vm.relative_base as i64) + param1) as usize;
 }
 
 fn halt_op(vm: &mut IntComputer, _: Vec<Parameter>) {
@@ -298,29 +325,39 @@ mod tests {
                 .set_noun(0)
                 .set_verb(0)
                 .execute(),
-            2
+            vec![2]
         );
-        assert_eq!(vm.load_program(&vec![2, 3, 0, 3, 99]).execute(), 2);
+        assert_eq!(vm.load_program(&vec![2, 3, 0, 3, 99]).execute(), vec![2]);
         assert_eq!(
             vm.load_program(&vec![2, 4, 4, 5, 99, 0])
                 .set_noun(4)
                 .set_verb(4)
                 .execute(),
-            2
+            vec![2]
         );
         assert_eq!(
             vm.load_program(&vec![1, 1, 1, 4, 99, 5, 6, 0, 99])
                 .set_noun(1)
                 .set_verb(1)
                 .execute(),
-            30,
+            vec![30],
         );
         assert_eq!(
             vm.load_program(&vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50])
                 .set_noun(9)
                 .set_verb(10)
                 .execute(),
-            3500
+            vec![3500]
+        );
+    }
+    #[test]
+    fn unit_tests_day_09()
+    {
+        let mut vm = IntComputer::new();
+        assert_eq!(
+            vm.load_program(&vec![104,1125899906842624,99])
+                .execute(),
+                vec![1125899906842624]
         );
     }
 }

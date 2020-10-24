@@ -18,14 +18,14 @@ pub fn get_lines<'a>(input: &'a String) -> impl Iterator<Item = &'a str> {
     input.split_ascii_whitespace()
 }
 
-pub fn parse_numbers<'a>(input: &'a String) -> impl Iterator<Item = i32> + '_ {
+pub fn parse_numbers<'a>(input: &'a String) -> impl Iterator<Item = i64> + '_ {
     parse_numbers_with_delimiter(input, '\n')
 }
 
 pub fn parse_numbers_with_delimiter<'a>(
     input: &'a String,
     delim: char,
-) -> impl Iterator<Item = i32> + '_ {
+) -> impl Iterator<Item = i64> + '_ {
     let lines = input.trim().split(delim).map(|s| s.parse().unwrap());
     lines
 }

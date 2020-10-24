@@ -3,10 +3,10 @@ use ::aoc2019::*;
 use itertools::Itertools;
 use std::ops::Range;
 
-fn compute_thruster_signal(phase: &[i32], program: &Vec<i32>) -> i32
+fn compute_thruster_signal(phase: &[i64], program: &Vec<i64>) -> i64
 {    
-    let mut input = 0 as i32;
-    let mut output: i32 = 0;
+    let mut input = 0 as i64;
+    let mut output: i64 = 0;
 
     for i in 0..5
     {
@@ -14,12 +14,13 @@ fn compute_thruster_signal(phase: &[i32], program: &Vec<i32>) -> i32
         vm.load_program(program);
         vm.push_input(phase[i]);
         vm.push_input(input);
-        output = vm.execute();
+        let result = vm.execute();
+        output = result[0];
         input = output;
     }
     output
 }
-fn compute_feedback_thruster_signal(phase: &[i32], program: &Vec<i32>) -> i32
+fn compute_feedback_thruster_signal(phase: &[i64], program: &Vec<i64>) -> i64
 {
     let mut amplifiers: Vec<IntComputer> = phase.iter().map(|&p| {
         let mut vm = IntComputer::new();
@@ -40,7 +41,8 @@ fn compute_feedback_thruster_signal(phase: &[i32], program: &Vec<i32>) -> i32
         for amp in amplifiers.iter_mut()
         {
             amp.push_input(input);
-            output = amp.execute();
+            let result = amp.execute();
+            output = result[0];
             input = output;
         }
     }
@@ -48,7 +50,7 @@ fn compute_feedback_thruster_signal(phase: &[i32], program: &Vec<i32>) -> i32
 }
 
 /// Tries all combinations of phase and finds the maximum signal output possible
-fn find_optimal_thruster_signal<F: Fn(&[i32], &Vec<i32>) -> i32>(program: &Vec<i32>, simulator: F, phase_range: Range<i32>) -> i32
+fn find_optimal_thruster_signal<F: Fn(&[i64], &Vec<i64>) -> i64>(program: &Vec<i64>, simulator: F, phase_range: Range<i64>) -> i64
 {
     let mut max_output = 0;
 
@@ -65,7 +67,7 @@ fn find_optimal_thruster_signal<F: Fn(&[i32], &Vec<i32>) -> i32>(program: &Vec<i
 
 fn main() {
     let input = read_stdin();
-    let data: Vec<i32> = parse_numbers_with_delimiter(&input, ',').collect();
+    let data: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 
     let output_a = find_optimal_thruster_signal(&data, compute_thruster_signal, 0..5);
     println!("Part A: {:?}", output_a);
