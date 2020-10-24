@@ -1,7 +1,7 @@
 use ::aoc2019::intcode::*;
 use ::aoc2019::*;
 
-fn compute_amplifier_signal(phase: [i32; 5], vm: &IntComputer) -> i32
+fn compute_amplifier_signal(phase: [i32; 5], program: &Vec<i32>) -> i32
 {
     let mut vm = IntComputer::new();
     vm.load_program(program);
@@ -17,6 +17,12 @@ fn compute_amplifier_signal(phase: [i32; 5], vm: &IntComputer) -> i32
     }
     output
 }
+/// Tries all combinations of phase and finds the maximum signal output possible
+fn find_optimal_thruster_signal(program: &Vec<i32>) -> i32
+{
+    
+}
+
 fn main() {
     let input = read_stdin();
     let data: Vec<i32> = parse_numbers_with_delimiter(&input, ',').collect();
