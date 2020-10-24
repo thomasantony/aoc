@@ -116,6 +116,7 @@ impl TryFrom<i32> for OpCode {
 pub enum CpuState {
     RUNNING,
     HALTED,
+    WAITING,
 }
 
 #[derive(Debug)]
@@ -168,10 +169,14 @@ impl IntComputer {
         self.memory[2] = verb;
         self
     }
+    pub fn is_halted(&mut self) -> bool 
+    {
+        self.cpu_state == CpuState::HALTED
+    }
     pub fn execute(&mut self) -> i32 {
         self.cpu_state = CpuState::RUNNING;
         self.ip = 0;
-        while self.cpu_state != CpuState::HALTED {
+        while self.cpu_state == CpuState::RUNNING {
             let opcode_int = self.memory[self.ip];
             let opcode = OpCodeType::try_from(opcode_int).expect("Error parsing opcode");
             let parameter_modes = ParameterModes::from(opcode_int);
@@ -219,14 +224,19 @@ fn mul_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
 }
 
 fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    let val = vm.input.pop_front().expect("Attempted to read input with no input specified");
-    parameters[0]
+    if let Some(val) = vm.input.pop_front()
+    {
+        parameters[0]
         .write(
             &mut vm.memory,
             val
         )
         .expect("Invalid output parameter for store_op()");
-    vm.ip += 2;
+        vm.ip += 2;
+    }else{
+        // Wait for input if there is no input available
+        vm.cpu_state = CpuState::WAITING;
+    }
 }
 fn read_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
     vm.output = Some(parameters[0].read(&vm.memory));
