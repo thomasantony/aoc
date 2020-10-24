@@ -128,7 +128,7 @@ mod tests {
             "E)J",
             "J)K",
             "K)L"];
-        data_str.into_iter().map(parse_data).collect()
+        data_str.into_iter().map(parse_data).flatten().collect()
     }
     fn demo_graph() -> OrbitGraph
     {

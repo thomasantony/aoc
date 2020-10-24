@@ -124,8 +124,25 @@ mod tests {
         let mut g = Graph::new();
         let a = g.add_node();
         let b = g.add_node();
+        let c = g.add_node();
 
-        assert!(g.nodes == vec![NodeData{first_outgoing_edge: Some(b)}]);
-        assert!(g.edges == vec![EdgeData{target: a, next_outgoing_edge: None}]);
+        assert!(g.nodes == vec![NodeData{first_outgoing_edge: None}, 
+                                NodeData{first_outgoing_edge: None},
+                                NodeData{first_outgoing_edge: None}]);
+        
+        
+        g.add_edge(a, b);
+        assert!(g.nodes == vec![NodeData{first_outgoing_edge: Some(0)},
+                                NodeData{first_outgoing_edge: None},
+                                NodeData{first_outgoing_edge: None}]);
+        assert!(g.edges == vec![EdgeData{target: b, next_outgoing_edge: None}]);
+
+        g.add_edge(a, c);
+        assert!(g.nodes == vec![NodeData{first_outgoing_edge: Some(1)},
+                                NodeData{first_outgoing_edge: None},
+                                NodeData{first_outgoing_edge: None}]);
+        assert!(g.edges == vec![EdgeData{target: b, next_outgoing_edge: None}, // a -> b
+                                EdgeData{target: c, next_outgoing_edge: Some(0)}]);
+        
     }
 }
