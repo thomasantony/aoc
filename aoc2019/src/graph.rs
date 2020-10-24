@@ -67,10 +67,10 @@ impl Graph {
             let current_node = *current_node;
 
             vertices.remove(current_node_idx);
-            if current_node == goal_node
-            {
-                break;
-            }
+            // if current_node == goal_node
+            // {
+            //     break;
+            // }
             self.successors(current_node).for_each(|neighbor| {
                 let alt = (dist[&current_node] as i32 + 1) as usize;
                 if alt < dist[&neighbor]

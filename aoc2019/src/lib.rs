@@ -31,3 +31,4 @@ pub fn parse_numbers_with_delimiter<'a>(
 }
 
 pub mod graph;
+pub mod tree;
