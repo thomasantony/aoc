@@ -2,7 +2,6 @@ extern crate anyhow;
 
 use std::io;
 use std::io::Read;
-
 pub mod intcode;
 
 pub fn read_stdin() -> String {
