@@ -1,12 +1,11 @@
-use ::aoc2019::intcode::*;
-use ::aoc2019::parse_numbers_with_delimiter;
+use crate::intcode::IntComputer;
 use std::collections::HashMap;
 
 type Coord = (i64, i64);
-type Grid = HashMap<Coord, Tile>;
+pub type Grid = HashMap<Coord, Tile>;
 const SCORE_COORD : (i64, i64)= (-1, 0);
 #[derive(Debug, PartialEq, Clone)]
-enum Tile {
+pub enum Tile {
     Empty = 0,
     Wall = 1,
     Block = 2,
@@ -26,7 +25,7 @@ impl Tile {
         }
     }
 }
-struct Arcade {
+pub struct Arcade {
     pub grid: Grid,
     program: Vec<i64>,
     vm: IntComputer,
@@ -76,15 +75,4 @@ impl Arcade {
             }
         }
     }
-}
-fn main() {
-    let input = include_str!("../../inputs/day13.txt").to_string();
-    let program: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
-    let mut arcade = Arcade::new(&program);
-
-    arcade.run_once();
-    println!("Part A: {}", arcade.num_blocks_remaining());
-
-    arcade.insert_quarter();
-
 }

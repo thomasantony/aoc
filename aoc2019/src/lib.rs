@@ -36,3 +36,4 @@ pub fn parse_digits<'a>(input: &'a str) -> impl Iterator<Item = u32> + '_
 pub mod graph;
 pub mod tree;
 pub mod vec3;
+pub mod arcade;
