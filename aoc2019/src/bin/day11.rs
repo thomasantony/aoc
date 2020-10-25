@@ -57,7 +57,23 @@ fn rotate(heading: Heading, turn: TurnCommand) -> Heading
     let hdg_1 = transform.2 * heading.0  + transform.3 * heading.1;
     (hdg_0, hdg_1)
 }
-impl Robot {
+impl Robot 
+{
+    pub fn new(program: &Vec<i64>, starting_color: PanelColor) -> Self {
+        let mut vm = IntComputer::new();
+        vm.set_ram_size(2048);
+        vm.load_program(program);
+
+        let mut grid = Grid::new();
+        // Set starting color at origin
+        grid.insert((0, 0), (starting_color, 0));
+        Self {
+            vm,
+            current_heading: (0, 1), //Up
+            current_pos: (0, 0),
+            grid
+        }
+    }
     fn get_current_panel_color(&mut self) -> PanelColor
     {
         let entry = self.grid.entry(self.current_pos)
@@ -71,17 +87,6 @@ impl Robot {
                     let last_count = v.1;
                     *v = (color, last_count + 1);
                 });
-    }
-    pub fn new(program: &Vec<i64>) -> Self {
-        let mut vm = IntComputer::new();
-        vm.set_ram_size(2048);
-        vm.load_program(program);
-        Self {
-            vm,
-            current_heading: (0, 1), //Up
-            current_pos: (0, 0),
-            grid: Grid::new(),
-        }
     }
     pub fn get_command(&mut self, color_of_panel: PanelColor) -> (PanelColor, TurnCommand)
     {
@@ -121,15 +126,47 @@ impl Robot {
     }
 }
 
+fn show_grid(grid: Grid)
+{
+    let min_x = grid.keys().map(|k| k.0).min().unwrap();
+    let min_y = grid.keys().map(|k| k.1).min().unwrap();
+    let max_x = grid.keys().map(|k| k.0).max().unwrap();
+    let max_y = grid.keys().map(|k| k.1).max().unwrap();
+
+    let x_range = max_x - min_x;
+    let y_range = max_y - min_y;
+    for j in 0..(y_range+1)
+    {
+        let j = min_y + ( y_range - j);
+        for i in 0..x_range
+        {
+            let i = min_x + i;
+            use PanelColor::*;
+            let (color, _) = grid.get(&(i, j)).unwrap_or(&(PanelColor::Black, 0));
+            match color {
+                Black => print!("."),
+                White => print!("#"),
+            }
+        }
+        println!();
+    }
+}
 fn main()
 {
     let input = include_str!("../../inputs/day11.txt").to_string();
     let program: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 
-    let mut robot = Robot::new(&program);
-    let result = robot.execute();
-    let painted_cells = result.iter().filter(|(_, v)| v.1 > 0).count();
-    println!("Result: {:?}", painted_cells);
+    let mut robot = Robot::new(&program, PanelColor::Black);
+    let grid = robot.execute();
+    let painted_cells = grid.iter().filter(|(_, v)| v.1 > 0).count();
+    // show_grid(grid);
+    println!("Part A: {:?}", painted_cells);
+
+    println!("\nPart B:");
+    let mut robot = Robot::new(&program, PanelColor::White);
+    let grid = robot.execute();
+    show_grid(grid);
+    
 }
 
 #[cfg(test)]
