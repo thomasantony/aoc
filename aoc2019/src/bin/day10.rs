@@ -1,4 +1,4 @@
-/// Reference: http://www-cs-students.stanford.edu/~amitp/Articles/LineOfSight.html
+/// Reference: https://youtu.be/p-xa-3V5KO8 for ideas about gradients in discrete grid
 use std::f32::consts::FRAC_PI_2;
 use std::collections::{HashMap};
 use ::aoc2019::*;
