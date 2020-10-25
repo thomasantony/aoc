@@ -1,136 +1,155 @@
-use itertools::Itertools;
+use ::aoc2019::vec3::Vec3;
+use num::signum;
 
-type Position = (i32, i32, i32);
-type Velocity = (i32, i32, i32);
-#[derive(Debug)]
-pub struct Moon {
-    pos: Position,
-    vel: Velocity
-}
-
-impl Moon {
-    pub fn new(x: i32, y: i32, z: i32) -> Self {
-        Self {
-            pos: (x, y, z),
-            vel: (0, 0, 0)
-        }
-    }
-    pub fn from(pos: Position, vel: Velocity) -> Self {
-        Self {
-            pos,
-            vel,
-        }
-    }
-}
-fn apply_gravity(moon: &Moon, moon_2: &Moon) -> (Moon, Moon)
+fn compute_gravity(positions: &[Vec3]) -> Vec<Vec3>
 {
-    let (p1, v1) = (moon.pos, moon.vel);
-    let (p2, v2) = (moon_2.pos, moon_2.vel);
-    let sign_vel12_x = num::signum(p2.0 - p1.0);
-    let sign_vel12_y = num::signum(p2.1 - p1.1);
-    let sign_vel12_z = num::signum(p2.2 - p1.2);
-
-    let v1 = (v1.0 + sign_vel12_x*1, v1.1 + sign_vel12_y*1, v1.2 + sign_vel12_z*1);
-    let v2 = (v2.0 - sign_vel12_x*1, v2.1 - sign_vel12_y*1, v2.2 - sign_vel12_z*1);
-
-    (Moon::from(p1, v1), Moon::from(p2, v2))
-}
-
-fn apply_velocity(moon: &Moon) -> Moon
-{
-    let (p1, v1) = (moon.pos, moon.vel);
-    let p1 = (p1.0 + v1.0, p1.1 + v1.1, p1.2 + v1.2);
-    
-    Moon::from(p1, v1)
-}
-
-fn potential_energy(moon: &Moon) -> i32
-{
-    moon.pos.0.abs() + moon.pos.1.abs() + moon.pos.2.abs()
-}
-fn kinetic_energy(moon: &Moon) -> i32
-{
-    moon.vel.0.abs() + moon.vel.1.abs() + moon.vel.2.abs()
-}
-fn total_energy(moons: &Vec<Moon>) -> i32
-{
-    moons.iter().map(|m| potential_energy(m) * kinetic_energy(m)).sum()
-}
-
-fn simulate(mut moons: Vec<Moon>, num_iterations: i32) -> Vec<Moon>
-{
-    for _ in 0..num_iterations
+    let mut output = Vec::new();
+    for p1 in positions.iter()
     {
-        for m12 in (0..4).combinations(2)
+        let mut d_v = Vec3::default();
+        for p2 in positions.iter()
         {
-            let i = m12[0];
-            let j = m12[1];
-            let m1 = &moons[i];
-            let m2 = &moons[j];
+            let p12 = p2 - p1;
+            let sgn_x = signum(p12.x);
+            let sgn_y = signum(p12.y);
+            let sgn_z = signum(p12.z);
 
-            let (m1, m2) = apply_gravity(m1, m2);
-            
-            moons[i] = m1;
-            moons[j] = m2;
+            d_v = d_v + Vec3::new(sgn_x, sgn_y, sgn_z);
         }
-        
-        for m in moons.iter_mut()
-        {
-            *m = apply_velocity(m);
-        }
+        output.push(d_v);
     }
-    moons
+    output
+}
+
+// One time step for all bodies
+fn single_step(pos: &mut [Vec3], vel: &mut [Vec3])
+{
+    let d_v = compute_gravity(pos);
+    for i in 0..pos.len()
+    {
+        vel[i] = vel[i] + d_v[i];
+        pos[i] = pos[i] + vel[i];
+    }
+}
+
+fn simulate(start_pos: &[Vec3], num_iterations: i64) -> (Vec<Vec3>, Vec<Vec3>)
+{
+    let mut pos: Vec<Vec3> = start_pos.iter().cloned().collect();
+    let mut vel = vec![Vec3::default(); pos.len()];
+    for _ in 0..(num_iterations)
+    {
+        single_step(&mut pos, &mut vel);
+    }
+    (pos, vel)
+}
+// Assumption:
+// Transition steps are reversible.
+// => Each step has a single predecessor
+// => If there is a cycle, it *has* to hit the initial state
+//     => If cycle starts elsewhere, this would mean there is a state with two predecessors
+//        which is a contradiction
+// Therefore it is enough to check if the initial state repeats
+// Additionally, since initial vel is zero and all 3 states propagate independently
+// It is enough to find cycle lengths for vx, vy and vz 
+// and then find the LCM as half the cycle length
+
+fn detect_cycle_in_component(start_pos: &[Vec3], component_index: usize) -> usize
+{
+    let mut pos: Vec<Vec3> = start_pos.iter().cloned().collect();
+    let mut vel = vec![Vec3::default(); pos.len()];
+    let mut i = 1;
+    single_step(&mut pos, &mut vel);
+    while! vel.iter().all(|v| v.get(component_index) == 0)
+    {
+        single_step(&mut pos, &mut vel);
+        i +=1;
+    }
+    return 2*i;
+}
+fn solve_part_a(moons: &[Vec3]) -> i64
+{
+    let (pos, vel) = simulate(&moons, 1000);
+    
+    let potential_energy = pos.iter().map(|p| p.l1_norm());
+    let kinetic_energy = vel.iter().map(|v| v.l1_norm());
+
+    potential_energy.zip(kinetic_energy).fold(0, |acc, (ke, pe)| acc + ke * pe)
+}
+fn solve_part_b(moons: &[Vec3]) -> usize
+{
+    use num::Integer;
+    let x_cycle = detect_cycle_in_component(moons, 0);
+    let y_cycle = detect_cycle_in_component(moons, 1);
+    let z_cycle = detect_cycle_in_component(moons, 2);
+    
+    x_cycle.lcm(&y_cycle).lcm(&z_cycle)
 }
 fn main()
 {
     let mut moons = Vec::new();
 
+    moons.push(Vec3::new(16, -8, 13));
+    moons.push(Vec3::new(4, 10, 10));
+    moons.push(Vec3::new(17, -5, 6));
+    moons.push(Vec3::new(13, -3, 0));
 
-    moons.push(Moon::new(16, -8, 13));
-    moons.push(Moon::new(4, 10,10));
-    moons.push(Moon::new(17, -5, 6));
-    moons.push(Moon::new(13, -3, 0));
-
-    let moons = simulate(moons, 1000);
-    let part_a = total_energy(&moons);
+    let part_a = solve_part_a(&moons);
     println!("Part A: {}", part_a);
+
+    let part_b = solve_part_b(&moons);
+    println!("Part B: {}", part_b);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn test_day12_part_a()
+    fn sample_data_1() -> Vec<Moon>
     {
         let mut moons = Vec::new();
         moons.push(Moon::new(-1, 0, 2));
         moons.push(Moon::new(2, -10,-7));
         moons.push(Moon::new(4, -8, 8));
         moons.push(Moon::new(3, 5, -1));
-
-        let moons = simulate(moons, 1);
-        assert_eq!(moons[0].pos, (2, -1,  1));
-        assert_eq!(moons[0].vel, (3, -1, -1));
-
-        assert_eq!(moons[1].pos, (3, -7, -4));
-        assert_eq!(moons[1].vel, (1,  3,  3));
-
-        assert_eq!(moons[2].pos, (1, -7,  5));
-        assert_eq!(moons[2].vel, (-3,  1, -3));
-
-        assert_eq!(moons[3].pos, (2,  2,  0));
-        assert_eq!(moons[3].vel, (-1, -3,  1));
-
-        let moons = simulate(moons, 9);
-        assert_eq!(total_energy(&moons), 179);
-
-
+        moons
+    }
+    fn sample_data_2() -> Vec<Moon>
+    {
         let mut moons = Vec::new();
         moons.push(Moon::new(-8, -10, 0));
         moons.push(Moon::new(5, 5, 10));
         moons.push(Moon::new(2, -7, 3));
         moons.push(Moon::new(9, -8, -3));
+        moons
+    }
+    #[test]
+    fn test_day12_part_a()
+    {
+        let moons = sample_data_1();
+
+        let moons = simulate(moons, 1);
+        assert_eq!(moons[0].pos, Vec3::new(2, -1,  1));
+        assert_eq!(moons[0].vel, Vec3::new(3, -1, -1));
+        assert_eq!(moons[1].pos, Vec3::new(3, -7, -4));
+        assert_eq!(moons[1].vel, Vec3::new(1,  3,  3));
+        assert_eq!(moons[2].pos, Vec3::new(1, -7,  5));
+        assert_eq!(moons[2].vel, Vec3::new(-3,  1, -3));
+        assert_eq!(moons[3].pos, Vec3::new(2,  2,  0));
+        assert_eq!(moons[3].vel, Vec3::new(-1, -3,  1));
+
+        let moons = simulate(moons, 9);
+        assert_eq!(total_energy(&moons), 179);
+
+        let moons = sample_data_2();
         let moons = simulate(moons, 100);
         assert_eq!(total_energy(&moons), 1940);
-    }   
+    }
+    #[test]
+    fn test_day12_part_b()
+    {
+        let moons = sample_data_1();
+        assert_eq!(simulate_until_repeat(moons, 3000), Some(2772));
+
+        let moons = sample_data_2();
+        assert_eq!(simulate_until_repeat(moons, 4686775000), Some(4686774924));
+    }
 }
