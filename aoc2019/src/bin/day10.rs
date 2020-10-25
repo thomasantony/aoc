@@ -1,9 +1,7 @@
 /// Reference: http://www-cs-students.stanford.edu/~amitp/Articles/LineOfSight.html
-use std::f32::consts::PI;
-use std::collections::{HashMap, HashSet};
+use std::f32::consts::FRAC_PI_2;
+use std::collections::{HashMap};
 use ::aoc2019::*;
-use itertools::Itertools;
-
 
 type Point = (usize, usize);
 type Gradient = (i32, i32);
@@ -64,7 +62,7 @@ fn compute_gradient_map(point: &Point, asteroid_map: &Vec<Point>) -> GradMap
 }
 fn compute_visibility_map(asteroid_map: &Vec<Point>) -> HashMap<Point, GradMap>
 {
-    let visibility_map = HashMap::new();
+    let mut visibility_map = HashMap::new();
     for i in 0..asteroid_map.len()
     {
         let p1 = asteroid_map[i];
@@ -73,6 +71,7 @@ fn compute_visibility_map(asteroid_map: &Vec<Point>) -> HashMap<Point, GradMap>
     }
     visibility_map
 }
+/// Computes the asteroid with the most other asteroids visible
 fn solve_part_a(visibility_map: &HashMap<Point, GradMap>) -> (Point, usize)
 {
     let best_asteroid = visibility_map
@@ -81,13 +80,66 @@ fn solve_part_a(visibility_map: &HashMap<Point, GradMap>) -> (Point, usize)
                         .unwrap();
     (*best_asteroid.0, best_asteroid.1.len())
 }
+/// Compute the order in which asteroids are destroyed based on gradient map
+/// based around a point
+/// Consumes gradient map that is passed in
+fn solve_part_b(mut visibility_map: GradMap, num_asteroids: usize) -> Vec<Point>
+{
+    let mut gradients:Vec<Gradient> = visibility_map.keys().cloned().collect();
+
+    gradients.sort_by_key(|a| {
+        let (y1, x1) = (a.0 as f32, a.1 as f32);
+        // Transform slope so that "0" is up, and increases clockwise
+        let slope = -(FRAC_PI_2 - y1.atan2(x1));
+        let mut slope = slope.to_degrees().round() as i32;
+        if slope < 0
+        {
+            slope = slope + 360;
+        }
+        slope
+    });
+
+    // Loop through gradients infinitely until n asteroids are hit
+    // Assumes there's enough asteroids
+    let mut i = 0;
+
+    let mut destroyed_asteroids = Vec::new();
+    for grad in gradients.into_iter().cycle()
+    {
+        // Get vector of asteroids in current line
+        let entry = visibility_map.entry(grad).or_default();
+
+        if entry.len() > 0
+        {
+            let asteroid_target = entry.remove(0);
+            destroyed_asteroids.push(asteroid_target);
+            // Found an asteroid along this line
+            i += 1;
+            if i >= num_asteroids {
+                break;
+            }
+        }else{
+            continue;
+        }
+    }
+    destroyed_asteroids
+}
 fn main()
 {
     let input = read_stdin();
     let asteroid_map = read_asteroid_map(&input);
     let visibility_map = compute_visibility_map(&asteroid_map);
     let part_a = solve_part_a(&visibility_map);
-    println!("Part A: {:?} with {} visible", part_a.0, part_a.1);    
+    println!("{:?}", &visibility_map.get(&(11, 19)).unwrap().len());
+    println!("{:?}", &visibility_map.get(&(11, 18)).unwrap().len());
+    println!("Part A: {:?} with {} visible", part_a.0, part_a.1);
+
+    let grad_map = visibility_map.get(&part_a.0).cloned().unwrap();
+    let destroyed_asteroids = solve_part_b(grad_map, 299);
+    let part_b = destroyed_asteroids[199];
+    println!("Part_B:");
+    println!("200th Asteroid: {:?}", part_b);
+    println!("Answer: {}", part_b.0*100 + part_b.1);
 }
 
 #[cfg(test)]
@@ -158,8 +210,40 @@ mod tests {
         for (input, expected_output) in test_cases.into_iter()
         {
             let map = read_asteroid_map(&String::from(input));
+            let map = compute_visibility_map(&map);
             let output = solve_part_a(&map);
             assert_eq!(output, expected_output);
         }
+    }
+    #[test]
+    fn test_day10_part_b()
+    {
+        let input = ".#..##.###...####### \
+                           ##.############..##. \
+                           .#.######.########.# \
+                           .###.#######.####.#. \
+                           #####.##.#.##.###.## \
+                           ..#####..#.######### \
+                           #################### \
+                           #.####....###.#.#.## \
+                           ##.################# \
+                           #####.##.###..####.. \
+                           ..######..##.####### \
+                           ####.##.####...##..# \
+                           .#####..#.######.### \
+                           ##...#.##########... \
+                           #.##########.####### \
+                           .####.#.###.###.#.## \
+                           ....##.##.###..##### \
+                           .#.#.###########.### \
+                           #.#.#.#####.####.### \
+                           ###.##.####.##.#..##".to_string();
+        let map = read_asteroid_map(&input);
+        let v_map = compute_visibility_map(&map);
+        let gradmap = v_map.get(&(11, 13)).cloned().unwrap();
+        let result = solve_part_b(gradmap, 299);
+        assert_eq!(result[0], (11, 12));
+        assert_eq!(result[199], (8, 2));
+        assert_eq!(result[298], (11, 1));
     }
 }
