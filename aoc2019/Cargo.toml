@@ -11,4 +11,5 @@ itertools = "0.9.0"
 anyhow = "1.0.25"
 num = {version = "0.3.0", default-features = false}
 termion = "1.5.5"
+counter = "0.5.2"
 
