@@ -1,10 +1,10 @@
 use crate::intcode::IntComputer;
 use std::collections::HashMap;
 
-type Coord = (i64, i64);
+pub type Coord = (i64, i64);
 pub type Grid = HashMap<Coord, Tile>;
 const SCORE_COORD : (i64, i64)= (-1, 0);
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Tile {
     Empty = 0,
     Wall = 1,
@@ -32,30 +32,32 @@ pub enum MoveCommand {
     Right = 1
 }
 
+#[derive(Debug)]
 pub struct Bounds {
-    min_x: u16,
-    min_y: u16,
-    max_x: u16,
-    max_y: u16,
+    pub max_x: u16,
+    pub max_y: u16,
 }
 
 pub struct Arcade {
     pub grid: Grid,
     program: Vec<i64>,
     vm: IntComputer,
-    score: i64
+    pub score: i64,
+    bounds: Bounds,
 }
 impl Arcade {
     pub fn new(program: &Vec<i64>) -> Self {
         let mut vm = IntComputer::new();
-        vm.set_ram_size(102400);
-        vm.load_program(program);
-
+        vm.set_ram_size(1048576);
+        let mut program = program.clone();
+        program[0] = 2; // Insert quarter
+        vm.load_program(&program);
         Self {
             grid: Grid::new(),
-            program: program.clone(),
+            program,
             vm,
             score: 0,
+            bounds: Bounds{max_x: 37, max_y: 21}
         }
     }
     pub fn reset(&mut self)
@@ -69,14 +71,6 @@ impl Arcade {
         self.program[0] = 2;
         self.reset();
     }
-    pub fn get_bounds(&self) -> Bounds
-    {
-        let min_x = self.grid.keys().min_by_key(|p|p.0).unwrap().0 as u16;
-        let min_y = self.grid.keys().min_by_key(|p|p.1).unwrap().1 as u16;
-        let max_x = self.grid.keys().max_by_key(|p|p.0).unwrap().0 as u16;
-        let max_y = self.grid.keys().max_by_key(|p|p.1).unwrap().1 as u16;
-        Bounds{min_x, max_x, min_y, max_y}
-    }
     pub fn command(&mut self, command: MoveCommand)
     {
         let cmd_input = command as i64;
@@ -86,13 +80,22 @@ impl Arcade {
     {
         self.grid.values().filter(|&t| t == &Tile::Block).count()
     }
+    pub fn num_empty_remaining(&self) -> usize
+    {
+        self.grid.values().filter(|&t| t == &Tile::Empty).count()
+    }
     pub fn run_once(&mut self)
     {
         let output = self.vm.execute();
         self.grid.clear();
         for command in output.chunks(3)
         {
+            if command.len() != 3
+            {
+                continue;
+            }
             let pos = (command[0], command[1]);
+
             if pos == SCORE_COORD
             {
                 self.score = command[2];
