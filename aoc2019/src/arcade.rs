@@ -1,4 +1,4 @@
-use crate::intcode::IntComputer;
+use crate::intcode::{IntComputer, CpuState};
 use std::collections::HashMap;
 use std::thread;
 use std::io::{Write, Read};
@@ -99,6 +99,10 @@ impl Arcade {
             self.run_once();
             self.draw(&mut stdout);
 
+            if self.vm.cpu_state == CpuState::HALTED
+            {
+                break;
+            }
         }
         write!(stdout, "{}{}{}", clear::All, style::Reset, cursor::Goto(1, 1)).ok();
         stdout.flush().unwrap();
