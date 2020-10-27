@@ -1,6 +1,11 @@
 use ::aoc2019::intcode::*;
 use ::aoc2019::{parse_numbers_with_delimiter};
 use std::collections::HashMap;
+use std::thread;
+use std::io::{Write, Read};
+use std::time::{Instant, Duration};
+use termion::{color, cursor, clear, style};
+use termion::raw::IntoRawMode;
 
 type Coord = (i64, i64);
 type MoveDirection = (i64, i64);
@@ -17,10 +22,10 @@ impl std::fmt::Display for &Cell
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Cell::*;
         let s = match self{
-            Unknown => " ",
-            Empty => ".",
-            Wall=> "#",
-            OxygenSystem => "*",
+            Unknown => format!(" "),
+            Empty => format!("{}·", color::Fg(color::Yellow)),
+            Wall=> format!("{}#", color::Fg(color::LightBlue)),
+            OxygenSystem => format!("{}*", color::Fg(color::Red)),
         };
         write!(f, "{}", s)
     }
@@ -101,8 +106,65 @@ impl Robot
         // Interpret the output and update map
         self.interpret_output(command, output[0]);
     }
+    pub fn explore(&mut self)
+    {
+        // let mut stdin = termion::async_stdin();
+        let mut stdin = std::io::stdin();
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock().into_raw_mode().unwrap();
+
+        let speed = 4;
+        write!(stdout, "{}{}", clear::All, cursor::Hide).unwrap();
+
+        let mut before = Instant::now();
+
+        let mut actions : HashMap<Coord, Vec<MoveCommand>> = HashMap::new();
+        let all_cmds = vec![MoveCommand::West, MoveCommand::South, MoveCommand::East, MoveCommand::North];
+        for _ in 0..100 {
+            let interval = 1000 / speed;
+            let now = Instant::now();
+            let dt = (now.duration_since(before).subsec_nanos() / 1_000_000) as u64;
+
+            if dt < interval {
+                thread::sleep(Duration::from_millis(interval - dt));
+                continue;
+            }
+            before = now;
+
+            write!(stdout, "{}", cursor::Goto(1, 1)).ok();
+            self.draw_map(&mut stdout, 50, 50);
+
+            let mut key_bytes = [0];
+            stdin.read(&mut key_bytes).unwrap();
+
+            let command = match key_bytes[0] {
+                b'q' => break,
+                b'A' | b'a' => Some(MoveCommand::West),
+                b'D' | b'd' => Some(MoveCommand::East),
+                b'W' | b'w' => Some(MoveCommand::North),
+                b'S' | b's' => Some(MoveCommand::South),
+                _ => None,
+            };
+
+
+            if let Some(command) = command
+            {
+                // println!("Moving {:?} for {:?}", &command, &self.position);
+                self.step(command);
+            // }else{
+            //     println!("Exiting at {:?}", &self.position);
+            //     break;
+            }
+            
+            write!(stdout, "{}", style::Reset).ok();
+            stdout.flush().unwrap();
+        }
+        write!(stdout, "{}{}{}", cursor::Restore, style::Reset, cursor::Goto(1, 1)).ok();
+        // self.draw_map(&mut stdout, 10, 10);
+        stdout.flush().unwrap();
+    }
     // Renders current map centered on the robot
-    pub fn draw_map(&mut self, width: i64, height: i64)
+    pub fn draw_map<W: Write>(&self, mut out: W, width: i64, height: i64)
     {
         let min_x = self.position.0 - width/2;
         let _max_x = self.position.0 + width/2 + 1;
@@ -110,21 +172,25 @@ impl Robot
         let _min_y = self.position.1 - height/2;
         let max_y = self.position.1 + height/2 + 1;
         
+        write!(out, "{}", cursor::Goto(1, 1)).ok();
         for j in 0..height+1
         {
-            let j = max_y - j - 1;
+            let y = max_y - j - 1;
             for i in 0..width+1
             {
-                let i = min_x + i;
-                let pos = (i, j);
+                let x = min_x + i;
+                let pos = (x, y);
+
+                let screen_pos = cursor::Goto(i as u16+1, j as u16+1);
                 if pos == self.position
                 {
-                    print!("D");
+                    write!(out, "{}D", screen_pos).ok();
                 }else{
-                    print!("{}", self.map.get(& pos).unwrap_or(& Cell::Unknown));
+                    write!(out, "{}{}", screen_pos, 
+                            self.map.get(& pos).unwrap_or(& Cell::Unknown)).ok();
                 }
             }
-            println!();
+            writeln!(out).ok();
         }
     }
 }
@@ -135,7 +201,8 @@ fn main()
     let program: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 
     let mut robot = Robot::new(&program);
-    robot.step(MoveCommand::North);
-    robot.draw_map(10, 10);
+    robot.explore();
+    // robot.step(MoveCommand::North);
+    // robot.draw_map(10, 10);
     // println!("Part A: {:?}", painted_cells);
 }
