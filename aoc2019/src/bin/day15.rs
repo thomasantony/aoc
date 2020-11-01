@@ -65,11 +65,29 @@ impl From<MoveCommand> for MoveDirection {
     }
 }
 
-type Grid = HashMap<Coord, Cell>;
-
+struct Grid (HashMap<Coord, Cell>);
+impl Grid {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+}
+use ::aoc2019::graph::GenericGraph;
+impl GenericGraph<Coord> for Grid {
+    fn successors(&self, node: &Coord) -> Vec<Coord>
+    {
+        let all_cmds = vec![MoveCommand::West, MoveCommand::South, MoveCommand::East, MoveCommand::North];
+        let all_directions = all_cmds.into_iter().map(|c| MoveDirection::from(c));
+        all_directions.map(|dir| {
+            (node.0 + dir.0, node.1 + dir.1)
+        }).collect()
+    }
+    fn vertices(&self) -> Vec<Coord>
+    {
+        self.0.keys().map(|i| i.clone()).collect()
+    }
+}
 struct Robot {
     map: Grid,
-    position: Coord,
     vm: IntComputer
 }
 
@@ -98,34 +116,10 @@ impl Robot
         vm.load_program(program);
 
         let mut map = Grid::new();
-        map.insert((0, 0), Cell::Empty);
+        map.0.insert((0, 0), Cell::Empty);
         Self {
             vm,
-            position: (0, 0),
             map
-        }
-    }
-    pub fn interpret_output(&mut self, last_command: MoveCommand, output: Cell)
-    {
-        let walk_direction = MoveDirection::from(last_command);
-        let new_pos = (self.position.0 + walk_direction.0, 
-                                        self.position.1 + walk_direction.1);
-        match output {
-            Cell::Wall => {
-                // We hit a wall in the direction we walked
-                self.map.insert(new_pos, Cell::Wall);
-            },
-            Cell::Empty => {
-                // Moved forward and its empty
-                self.map.insert(new_pos, Cell::Empty);
-                self.position = new_pos;
-            },
-            Cell::OxygenSystem => {
-                // Moved forward and found oxygen system
-                self.map.insert(new_pos, Cell::OxygenSystem);
-                self.position = new_pos;
-            },
-            _ => {}
         }
     }
     pub fn move_robot(&mut self, command: MoveCommand) -> Cell
@@ -148,12 +142,6 @@ impl Robot
             _ => Cell::Unknown
         }
     }
-    pub fn step(&mut self, command: MoveCommand)
-    {
-        let output = self.move_robot(command);
-        // Interpret the output and update map
-        self.interpret_output(command, output);
-    }
     
     // returns cell type in the given direction by taking a step in that direction
     // and stepping back if it is an open cell
@@ -171,16 +159,16 @@ impl Robot
         let all_cmds = vec![MoveCommand::West, MoveCommand::South, MoveCommand::East, MoveCommand::North];
         let mut path: Vec<MoveCommand> = Vec::new();
         
-        map.insert(start_node, Cell::Empty);
+        map.0.insert(start_node, Cell::Empty);
         
         let mut o2_pos = None;
 
-        let mut unexplored = HashMap::new();
-        unexplored.insert(start_node, all_cmds);
+        let mut unexplored_actions = HashMap::new();
+        unexplored_actions.insert(start_node, all_cmds);
         while !q.is_empty()
         {
             let node = q.pop_front().unwrap();
-            let mut available_cmds= unexplored.get(&node).cloned().unwrap();
+            let mut available_cmds= unexplored_actions.remove(&node).unwrap();
             let mut found_new_cell = false;
             while available_cmds.len() > 0
             {
@@ -188,7 +176,7 @@ impl Robot
                 let new_pos = get_position_for_command(node, cmd);
                 let new_cell = self.move_and_get_cell_type(cmd);
                 
-                map.insert(new_pos, new_cell);
+                map.0.insert(new_pos, new_cell);
                 if new_cell == Cell::OxygenSystem
                 {
                     // Save O2 system position
@@ -198,9 +186,9 @@ impl Robot
                 {
                     path.push(cmd);
                     q.push_back(new_pos);
-                    if !unexplored.contains_key(&new_pos)
+                    if !unexplored_actions.contains_key(&new_pos)
                     {
-                        unexplored.insert(new_pos, get_new_directions(cmd));
+                        unexplored_actions.insert(new_pos, get_new_directions(cmd));
                     }
                     found_new_cell = true;
                     break;
@@ -221,24 +209,45 @@ impl Robot
                 self.move_robot(new_cmd);
                 q.push_back(old_pos);
             }
-            unexplored.insert(node, available_cmds);
+            unexplored_actions.insert(node, available_cmds);
         }
         (map, o2_pos)
     }
     pub fn explore(&mut self)
     {
-        let stdout = std::io::stdout();
-        let mut stdout = stdout.lock().into_raw_mode().unwrap();
         
         let (map, o2_pos) = self.map_and_find_o2_system();
-
+        let o2_pos = o2_pos.expect("O2 not found!");
+        let path = ::aoc2019::graph::djikstra_generic(&map, (0, 0), o2_pos.clone());
+        // println!("Path found of length {}", path.len());
         self.map = map;
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock().into_raw_mode().unwrap();
         write!(stdout, "{}{}", clear::All, cursor::Hide).unwrap();
+        self.draw_map(&mut stdout, &self.map, (0, 0), 42, 42);
+        self.draw_path(&mut stdout, &path, (0, 0), 42, 42);
         write!(stdout, "{}{}", cursor::Restore, style::Reset).ok();
-        self.draw_map(&mut stdout, &self.map, (0, 0), 80, 40);
         stdout.flush().unwrap();
+    }
+    pub fn draw_path<W: Write>(&self, mut out: W, path: &Vec<Coord>, center: Coord, width: i64, height: i64)
+    {
+        let screen_center = (width/2 + center.0, height/2 + center.1);
+        let max_y = center.1 + height/2 + 1;
+        let len = path.len();
+        for (ctr, pos) in path.iter().enumerate() {
+            let j = screen_center.1 - pos.1 - 1;
+            let i = screen_center.0 + pos.0;
+            let screen_pos = cursor::Goto(i as u16+1, j as u16+1);
+            let output = if ctr == 0
+            {
+                format!("{}D", color::Fg(color::Blue))
+            }else if ctr == len {
+                format!("{}x", color::Fg(color::Red))
+            }else{
+                format!("{}o", color::Fg(color::Green))
+            };
+            write!(out, "{}{}", screen_pos, output).ok();
+        }
     }
     // Renders current map centered on the robot
     pub fn draw_map<W: Write>(&self, mut out: W, map:&Grid, center: Coord, width: i64, height: i64)
@@ -259,7 +268,7 @@ impl Robot
                 let pos = (x, y);
 
                 let screen_pos = cursor::Goto(i as u16+1, j as u16+1);
-                let cell_type = map.get(& pos).unwrap_or(& Cell::Unknown);
+                let cell_type = map.0.get(& pos).unwrap_or(& Cell::Unknown);
                 write!(out, "{}{}", screen_pos, cell_type).ok();
             }
             writeln!(out).ok();

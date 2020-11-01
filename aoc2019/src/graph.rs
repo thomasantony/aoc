@@ -146,3 +146,57 @@ mod tests {
         
     }
 }
+
+use std::hash::Hash;
+use std::fmt::Debug;
+pub trait GenericGraph<NodeType: Debug + PartialEq + Clone + Hash + Eq> {
+    fn successors(&self, node: &NodeType) -> Vec<NodeType>;
+    fn vertices(&self) -> Vec<NodeType>;
+}
+
+// Djikstra's algorithm for a grid
+pub fn djikstra_generic<NodeType: Debug + PartialEq + Clone + Hash + Eq, G: GenericGraph<NodeType>>(
+    map: &G, start_node: NodeType, goal_node: NodeType) -> Vec<NodeType>
+{
+    use std::collections::HashMap;
+    let mut vertices = map.vertices();
+
+    let mut dist: HashMap<NodeType, usize> = HashMap::new();
+    let mut prev: HashMap<NodeType, NodeType> = HashMap::new();
+    
+    for v in vertices.iter()
+    {
+        dist.insert(v.clone(), std::usize::MAX);
+    }
+    dist.insert(start_node, 0);
+
+    while vertices.len() > 0
+    {
+        let (current_node_idx, current_node) = vertices.iter().enumerate()
+                                            .min_by_key(|(_, n)|dist.get(n)).unwrap();
+        let current_node = current_node.clone();
+
+        vertices.remove(current_node_idx);
+        map.successors(&current_node).iter().for_each(|neighbor| {
+            let alt = (dist[&current_node] as i32 + 1) as usize;
+            
+            if alt < * dist.get(&neighbor).unwrap_or(& std::usize::MAX)
+            {
+                dist.insert(neighbor.clone(), alt);
+                prev.insert(neighbor.clone(), current_node.clone());
+            }
+        });
+    }
+    
+    // Reconstruct path
+    let mut u = goal_node;
+    let mut path = Vec::new();
+    path.push(u.clone());
+    while let Some(next_node) = prev.get(&u)
+    {
+        path.push(next_node.clone());
+        u = next_node.clone();
+    }
+    path.reverse();
+    path
+}
