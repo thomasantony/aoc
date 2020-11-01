@@ -1,6 +1,6 @@
 use ::aoc2019::intcode::*;
 use ::aoc2019::{parse_numbers_with_delimiter};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::thread;
 use std::io::{Write, Read};
 use std::time::{Instant, Duration};
@@ -10,13 +10,14 @@ use termion::raw::IntoRawMode;
 type Coord = (i64, i64);
 type MoveDirection = (i64, i64);
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Cell {
     Unknown,
     Empty,
     Wall,
     OxygenSystem
 }
+
 impl std::fmt::Display for &Cell 
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -38,6 +39,17 @@ pub enum MoveCommand
     South = 2,
     West = 3,
     East = 4,
+}
+impl MoveCommand {
+    fn reverse(&self) -> Self {
+        use MoveCommand::*;
+        match self {
+            North => South,
+            South => North,
+            East => West,
+            West => East
+        }
+    }
 }
 impl From<MoveCommand> for MoveDirection {
     fn from(other: MoveCommand) -> Self
@@ -61,6 +73,23 @@ struct Robot {
     vm: IntComputer
 }
 
+pub fn get_position_for_command(position: Coord, command: MoveCommand) -> Coord {
+    let walk_direction = MoveDirection::from(command);
+    let new_pos = (position.0 + walk_direction.0, 
+                                    position.1 + walk_direction.1);
+    new_pos
+}
+pub fn get_new_directions(command: MoveCommand) -> Vec<MoveCommand>
+{
+    use MoveCommand::*;
+    match command
+    {
+        North => vec![East, North, West],
+        East => vec![South, East, North],
+        South => vec![West, South, East],
+        West => vec![North, West, South,],
+    }
+}
 impl Robot 
 {
     pub fn new(program: &Vec<i64>) -> Self {
@@ -76,22 +105,22 @@ impl Robot
             map
         }
     }
-    pub fn interpret_output(&mut self, last_command: MoveCommand, output: i64)
+    pub fn interpret_output(&mut self, last_command: MoveCommand, output: Cell)
     {
         let walk_direction = MoveDirection::from(last_command);
         let new_pos = (self.position.0 + walk_direction.0, 
                                         self.position.1 + walk_direction.1);
         match output {
-            0 => {
+            Cell::Wall => {
                 // We hit a wall in the direction we walked
                 self.map.insert(new_pos, Cell::Wall);
             },
-            1 => {
+            Cell::Empty => {
                 // Moved forward and its empty
                 self.map.insert(new_pos, Cell::Empty);
                 self.position = new_pos;
             },
-            2 => {
+            Cell::OxygenSystem => {
                 // Moved forward and found oxygen system
                 self.map.insert(new_pos, Cell::OxygenSystem);
                 self.position = new_pos;
@@ -99,78 +128,126 @@ impl Robot
             _ => {}
         }
     }
-    pub fn step(&mut self, command: MoveCommand)
+    pub fn move_robot(&mut self, command: MoveCommand) -> Cell
     {
         self.vm.push_input(command as i64);
         let output = self.vm.execute();
+        match output[0] {
+            0 => {
+                // We hit a wall in the direction we walked
+                Cell::Wall
+            },
+            1 => {
+                // Moved forward and its empty
+                Cell::Empty
+            },
+            2 => {
+                // Moved forward and found oxygen system
+                Cell::OxygenSystem
+            },
+            _ => Cell::Unknown
+        }
+    }
+    pub fn step(&mut self, command: MoveCommand)
+    {
+        let output = self.move_robot(command);
         // Interpret the output and update map
-        self.interpret_output(command, output[0]);
+        self.interpret_output(command, output);
+    }
+    
+    // returns cell type in the given direction by taking a step in that direction
+    // and stepping back if it is an open cell
+    pub fn move_and_get_cell_type(&mut self, command: MoveCommand) -> Cell
+    {
+        let output = self.move_robot(command);
+        output
+    }
+    pub fn map_and_find_o2_system(&mut self) -> (Grid, Option<Coord>)
+    {
+        let start_node: Coord = (0, 0);
+        let mut q = VecDeque::from(vec![start_node]);
+        let mut map = Grid::new();
+
+        let all_cmds = vec![MoveCommand::West, MoveCommand::South, MoveCommand::East, MoveCommand::North];
+        let mut path: Vec<MoveCommand> = Vec::new();
+        
+        map.insert(start_node, Cell::Empty);
+        
+        let mut o2_pos = None;
+
+        let mut unexplored = HashMap::new();
+        unexplored.insert(start_node, all_cmds);
+        while !q.is_empty()
+        {
+            let node = q.pop_front().unwrap();
+            let mut available_cmds= unexplored.get(&node).cloned().unwrap();
+            let mut found_new_cell = false;
+            while available_cmds.len() > 0
+            {
+                let cmd = available_cmds.pop().unwrap();
+                let new_pos = get_position_for_command(node, cmd);
+                let new_cell = self.move_and_get_cell_type(cmd);
+                
+                map.insert(new_pos, new_cell);
+                if new_cell == Cell::OxygenSystem
+                {
+                    // Save O2 system position
+                    o2_pos = Some(new_pos);
+                }
+                if new_cell == Cell::Empty || new_cell == Cell::OxygenSystem
+                {
+                    path.push(cmd);
+                    q.push_back(new_pos);
+                    if !unexplored.contains_key(&new_pos)
+                    {
+                        unexplored.insert(new_pos, get_new_directions(cmd));
+                    }
+                    found_new_cell = true;
+                    break;
+                }
+            }
+            // Exhausted all options in current cell, and found nothing
+            // Need to backtrack
+            if !found_new_cell && available_cmds.is_empty()
+            {
+                // If there is nothing more to backtrack, we are done.
+                if path.is_empty()  
+                {
+                    break;
+                }
+                let last_cmd = path.pop().unwrap();
+                let new_cmd = last_cmd.reverse();
+                let old_pos = get_position_for_command(node, new_cmd);
+                self.move_robot(new_cmd);
+                q.push_back(old_pos);
+            }
+            unexplored.insert(node, available_cmds);
+        }
+        (map, o2_pos)
     }
     pub fn explore(&mut self)
     {
-        // let mut stdin = termion::async_stdin();
-        let mut stdin = std::io::stdin();
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock().into_raw_mode().unwrap();
+        
+        let (map, o2_pos) = self.map_and_find_o2_system();
 
-        let speed = 4;
+        self.map = map;
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock().into_raw_mode().unwrap();
         write!(stdout, "{}{}", clear::All, cursor::Hide).unwrap();
-
-        let mut before = Instant::now();
-
-        let mut actions : HashMap<Coord, Vec<MoveCommand>> = HashMap::new();
-        let all_cmds = vec![MoveCommand::West, MoveCommand::South, MoveCommand::East, MoveCommand::North];
-        for _ in 0..100 {
-            let interval = 1000 / speed;
-            let now = Instant::now();
-            let dt = (now.duration_since(before).subsec_nanos() / 1_000_000) as u64;
-
-            if dt < interval {
-                thread::sleep(Duration::from_millis(interval - dt));
-                continue;
-            }
-            before = now;
-
-            write!(stdout, "{}", cursor::Goto(1, 1)).ok();
-            self.draw_map(&mut stdout, 50, 50);
-
-            let mut key_bytes = [0];
-            stdin.read(&mut key_bytes).unwrap();
-
-            let command = match key_bytes[0] {
-                b'q' => break,
-                b'A' | b'a' => Some(MoveCommand::West),
-                b'D' | b'd' => Some(MoveCommand::East),
-                b'W' | b'w' => Some(MoveCommand::North),
-                b'S' | b's' => Some(MoveCommand::South),
-                _ => None,
-            };
-
-
-            if let Some(command) = command
-            {
-                // println!("Moving {:?} for {:?}", &command, &self.position);
-                self.step(command);
-            // }else{
-            //     println!("Exiting at {:?}", &self.position);
-            //     break;
-            }
-            
-            write!(stdout, "{}", style::Reset).ok();
-            stdout.flush().unwrap();
-        }
-        write!(stdout, "{}{}{}", cursor::Restore, style::Reset, cursor::Goto(1, 1)).ok();
-        // self.draw_map(&mut stdout, 10, 10);
+        write!(stdout, "{}{}", cursor::Restore, style::Reset).ok();
+        self.draw_map(&mut stdout, &self.map, (0, 0), 80, 40);
         stdout.flush().unwrap();
     }
     // Renders current map centered on the robot
-    pub fn draw_map<W: Write>(&self, mut out: W, width: i64, height: i64)
+    pub fn draw_map<W: Write>(&self, mut out: W, map:&Grid, center: Coord, width: i64, height: i64)
     {
-        let min_x = self.position.0 - width/2;
-        let _max_x = self.position.0 + width/2 + 1;
+        let min_x = center.0 - width/2;
+        let _max_x = center.0 + width/2 + 1;
 
-        let _min_y = self.position.1 - height/2;
-        let max_y = self.position.1 + height/2 + 1;
+        let _min_y = center.1 - height/2;
+        let max_y = center.1 + height/2 + 1;
         
         write!(out, "{}", cursor::Goto(1, 1)).ok();
         for j in 0..height+1
@@ -182,13 +259,8 @@ impl Robot
                 let pos = (x, y);
 
                 let screen_pos = cursor::Goto(i as u16+1, j as u16+1);
-                if pos == self.position
-                {
-                    write!(out, "{}D", screen_pos).ok();
-                }else{
-                    write!(out, "{}{}", screen_pos, 
-                            self.map.get(& pos).unwrap_or(& Cell::Unknown)).ok();
-                }
+                let cell_type = map.get(& pos).unwrap_or(& Cell::Unknown);
+                write!(out, "{}{}", screen_pos, cell_type).ok();
             }
             writeln!(out).ok();
         }
