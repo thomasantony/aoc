@@ -222,7 +222,7 @@ impl IntComputer {
         
         while self.cpu_state == CpuState::RUNNING {
             let opcode_int = self.memory[self.ip];
-            let opcode = OpCodeType::try_from(opcode_int).expect("Error parsing opcode");
+            let opcode = OpCodeType::try_from(opcode_int).expect(& format!("Error parsing opcode at {}", self.ip));
             let parameter_modes = ParameterModes::from(opcode_int);
 
             // println!("{}, Opcode: {:?}, {:?}", self.ip, &opcode.kind, &parameters);
