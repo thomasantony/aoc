@@ -96,6 +96,7 @@ impl GenericGraph<Coord> for Grid {
 }
 struct Robot {
     map: Grid,
+    o2_pos: Option<Coord>,
     vm: IntComputer
 }
 
@@ -127,6 +128,7 @@ impl Robot
         map.0.insert((0, 0), Cell::Empty);
         Self {
             vm,
+            o2_pos: None,
             map
         }
     }
@@ -225,23 +227,56 @@ impl Robot
         }
         (map, o2_pos)
     }
-    pub fn solve_part_a(&mut self) -> (Coord, Vec<Coord>)
+    pub fn map_area(&mut self)
+    {
+        let (map, o2_pos) = self.map_and_find_o2_system();
+        self.o2_pos = o2_pos;
+        self.map = map;
+    }
+    pub fn solve_part_a(&mut self) -> usize
     {
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock().into_raw_mode().unwrap();
         write!(stdout, "{}{}", clear::All, cursor::Hide).unwrap();
-
-        let (map, o2_pos) = self.map_and_find_o2_system();
-        let o2_pos = o2_pos.expect("O2 not found!");
-        let path = ::aoc2019::graph::djikstra_generic(&map, (0, 0), o2_pos.clone());
-        self.map = map;
         
+        let o2_pos = self.o2_pos.expect("O2 position unknown!");
+        let path = ::aoc2019::graph::djikstra_generic(&self.map, (0, 0), o2_pos);
         self.draw_map(&mut stdout, &self.map, (0, 0), 42, 42);
         self.draw_path(&mut stdout, &path, (0, 0), 42, 42);
 
         write!(stdout, "{}{}{}", cursor::Restore, style::Reset, cursor::Goto(1, 44)).ok();
         stdout.flush().unwrap();
-        (o2_pos, path)
+        path.len() - 1
+    }
+    pub fn solve_part_b(&mut self) -> usize
+    {
+        let o2_pos = self.o2_pos.expect("O2 position unknown!");
+        use std::collections::HashSet;
+        use std::collections::BinaryHeap;
+
+        let mut frontier = BinaryHeap::new();
+        frontier.push((0, o2_pos.clone()));
+
+        let mut filled = HashSet::new();
+        filled.insert(o2_pos);
+        let mut max_gen = 0;
+        while let Some((generation, node)) = frontier.pop()
+        {
+            // Use "successors" from GenericGraph trait to get adjacent nodes
+            let adjacent_nodes = self.map.successors(&node);
+            for node in adjacent_nodes {
+                // If node has not been filled, add it to frontier
+                if !filled.contains(&node)
+                {
+                    frontier.push((generation + 1, node));
+                    filled.insert(node);
+                }
+            }
+            if generation > max_gen {
+                max_gen = generation;
+            }
+        }    
+        max_gen
     }
     pub fn draw_path<W: Write>(&self, mut out: W, path: &Vec<Coord>, center: Coord, width: i64, height: i64)
     {
@@ -295,6 +330,11 @@ fn main()
     let program: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 
     let mut robot = Robot::new(&program);
-    let (o2_pos, path) = robot.solve_part_a();
-    println!("Part A: {}", path.len() - 1);
+    robot.map_area();
+    
+    let part_a = robot.solve_part_a();
+    println!("Part A: {}", part_a);
+
+    let part_b = robot.solve_part_b();
+    println!("Part B: {}", part_b);
 }
