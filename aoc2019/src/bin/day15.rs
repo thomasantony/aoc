@@ -1,9 +1,7 @@
 use ::aoc2019::intcode::*;
 use ::aoc2019::{parse_numbers_with_delimiter};
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::thread;
-use std::io::{Write, Read};
-use std::time::{Instant, Duration};
+use std::collections::{HashMap, VecDeque};
+use std::io::{Write};
 use termion::{color, cursor, clear, style};
 use termion::raw::IntoRawMode;
 
@@ -24,7 +22,7 @@ impl std::fmt::Display for &Cell
         use Cell::*;
         let s = match self{
             Unknown => format!(" "),
-            Empty => format!("{}·", color::Fg(color::Yellow)),
+            Empty => format!("{} ", color::Fg(color::White)),
             Wall=> format!("{}#", color::Fg(color::LightBlue)),
             OxygenSystem => format!("{}*", color::Fg(color::Red)),
         };
@@ -79,11 +77,21 @@ impl GenericGraph<Coord> for Grid {
         let all_directions = all_cmds.into_iter().map(|c| MoveDirection::from(c));
         all_directions.map(|dir| {
             (node.0 + dir.0, node.1 + dir.1)
-        }).collect()
+        })
+        .filter(|node| {
+            let cell_type = self.0.get(node).unwrap_or(& Cell::Unknown); 
+            cell_type == &Cell::Empty || cell_type == &Cell::OxygenSystem
+        })
+        .collect()
     }
     fn vertices(&self) -> Vec<Coord>
     {
-        self.0.keys().map(|i| i.clone()).collect()
+        self.0.keys().map(|i| i.clone())
+        .filter(|node| {
+            let cell_type = self.0.get(node).unwrap_or(& Cell::Unknown); 
+            cell_type == &Cell::Empty || cell_type == &Cell::OxygenSystem
+        })
+        .collect()
     }
 }
 struct Robot {
@@ -206,6 +214,10 @@ impl Robot
                 let last_cmd = path.pop().unwrap();
                 let new_cmd = last_cmd.reverse();
                 let old_pos = get_position_for_command(node, new_cmd);
+                if map.0.get(&old_pos).unwrap_or(&Cell::Unknown) != &Cell::Empty
+                {
+                    break;
+                }
                 self.move_robot(new_cmd);
                 q.push_back(old_pos);
             }
@@ -213,35 +225,36 @@ impl Robot
         }
         (map, o2_pos)
     }
-    pub fn explore(&mut self)
+    pub fn solve_part_a(&mut self) -> usize
     {
-        
-        let (map, o2_pos) = self.map_and_find_o2_system();
-        let o2_pos = o2_pos.expect("O2 not found!");
-        let path = ::aoc2019::graph::djikstra_generic(&map, (0, 0), o2_pos.clone());
-        // println!("Path found of length {}", path.len());
-        self.map = map;
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock().into_raw_mode().unwrap();
         write!(stdout, "{}{}", clear::All, cursor::Hide).unwrap();
+
+        let (map, o2_pos) = self.map_and_find_o2_system();
+        let o2_pos = o2_pos.expect("O2 not found!");
+        let path = ::aoc2019::graph::djikstra_generic(&map, (0, 0), o2_pos.clone());
+        self.map = map;
+        
         self.draw_map(&mut stdout, &self.map, (0, 0), 42, 42);
         self.draw_path(&mut stdout, &path, (0, 0), 42, 42);
-        write!(stdout, "{}{}", cursor::Restore, style::Reset).ok();
+
+        write!(stdout, "{}{}{}", cursor::Restore, style::Reset, cursor::Goto(1, 44)).ok();
         stdout.flush().unwrap();
+        path.len() -1
     }
     pub fn draw_path<W: Write>(&self, mut out: W, path: &Vec<Coord>, center: Coord, width: i64, height: i64)
     {
         let screen_center = (width/2 + center.0, height/2 + center.1);
-        let max_y = center.1 + height/2 + 1;
         let len = path.len();
         for (ctr, pos) in path.iter().enumerate() {
-            let j = screen_center.1 - pos.1 - 1;
+            let j = screen_center.1 - pos.1;
             let i = screen_center.0 + pos.0;
             let screen_pos = cursor::Goto(i as u16+1, j as u16+1);
             let output = if ctr == 0
             {
-                format!("{}D", color::Fg(color::Blue))
-            }else if ctr == len {
+                format!("{}D", color::Fg(color::Yellow))
+            }else if ctr == len -1 {
                 format!("{}x", color::Fg(color::Red))
             }else{
                 format!("{}o", color::Fg(color::Green))
@@ -282,8 +295,5 @@ fn main()
     let program: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 
     let mut robot = Robot::new(&program);
-    robot.explore();
-    // robot.step(MoveCommand::North);
-    // robot.draw_map(10, 10);
-    // println!("Part A: {:?}", painted_cells);
+    println!("Part A: {}", robot.solve_part_a());
 }

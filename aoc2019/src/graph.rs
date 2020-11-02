@@ -175,7 +175,6 @@ pub fn djikstra_generic<NodeType: Debug + PartialEq + Clone + Hash + Eq, G: Gene
         let (current_node_idx, current_node) = vertices.iter().enumerate()
                                             .min_by_key(|(_, n)|dist.get(n)).unwrap();
         let current_node = current_node.clone();
-
         vertices.remove(current_node_idx);
         map.successors(&current_node).iter().for_each(|neighbor| {
             let alt = (dist[&current_node] as i32 + 1) as usize;
