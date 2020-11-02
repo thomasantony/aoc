@@ -103,22 +103,22 @@ fn main()
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn sample_data_1() -> Vec<Moon>
+    fn sample_data_1() -> Vec<Vec3>
     {
         let mut moons = Vec::new();
-        moons.push(Moon::new(-1, 0, 2));
-        moons.push(Moon::new(2, -10,-7));
-        moons.push(Moon::new(4, -8, 8));
-        moons.push(Moon::new(3, 5, -1));
+        moons.push(Vec3::new(-1, 0, 2));
+        moons.push(Vec3::new(2, -10,-7));
+        moons.push(Vec3::new(4, -8, 8));
+        moons.push(Vec3::new(3, 5, -1));
         moons
     }
-    fn sample_data_2() -> Vec<Moon>
+    fn sample_data_2() -> Vec<Vec3>
     {
         let mut moons = Vec::new();
-        moons.push(Moon::new(-8, -10, 0));
-        moons.push(Moon::new(5, 5, 10));
-        moons.push(Moon::new(2, -7, 3));
-        moons.push(Moon::new(9, -8, -3));
+        moons.push(Vec3::new(-8, -10, 0));
+        moons.push(Vec3::new(5, 5, 10));
+        moons.push(Vec3::new(2, -7, 3));
+        moons.push(Vec3::new(9, -8, -3));
         moons
     }
     #[test]
@@ -126,30 +126,23 @@ mod tests {
     {
         let moons = sample_data_1();
 
-        let moons = simulate(moons, 1);
-        assert_eq!(moons[0].pos, Vec3::new(2, -1,  1));
-        assert_eq!(moons[0].vel, Vec3::new(3, -1, -1));
-        assert_eq!(moons[1].pos, Vec3::new(3, -7, -4));
-        assert_eq!(moons[1].vel, Vec3::new(1,  3,  3));
-        assert_eq!(moons[2].pos, Vec3::new(1, -7,  5));
-        assert_eq!(moons[2].vel, Vec3::new(-3,  1, -3));
-        assert_eq!(moons[3].pos, Vec3::new(2,  2,  0));
-        assert_eq!(moons[3].vel, Vec3::new(-1, -3,  1));
-
-        let moons = simulate(moons, 9);
-        assert_eq!(total_energy(&moons), 179);
-
-        let moons = sample_data_2();
-        let moons = simulate(moons, 100);
-        assert_eq!(total_energy(&moons), 1940);
+        let (moon_pos, moon_vel) = simulate(&moons, 1);
+        assert_eq!(moon_pos[0], Vec3::new(2, -1,  1));
+        assert_eq!(moon_vel[0], Vec3::new(3, -1, -1));
+        assert_eq!(moon_pos[1], Vec3::new(3, -7, -4));
+        assert_eq!(moon_vel[1], Vec3::new(1,  3,  3));
+        assert_eq!(moon_pos[2], Vec3::new(1, -7,  5));
+        assert_eq!(moon_vel[2], Vec3::new(-3,  1, -3));
+        assert_eq!(moon_pos[3], Vec3::new(2,  2,  0));
+        assert_eq!(moon_vel[3], Vec3::new(-1, -3,  1));
     }
     #[test]
     fn test_day12_part_b()
     {
         let moons = sample_data_1();
-        assert_eq!(simulate_until_repeat(moons, 3000), Some(2772));
+        assert_eq!(solve_part_b(&moons), 2772);
 
         let moons = sample_data_2();
-        assert_eq!(simulate_until_repeat(moons, 4686775000), Some(4686774924));
+        assert_eq!(solve_part_b(&moons), 4686774924);
     }
 }
