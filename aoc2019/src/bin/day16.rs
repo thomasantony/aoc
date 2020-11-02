@@ -1,7 +1,8 @@
 use ::aoc2019::{parse_digits, read_stdin};
 use std::iter::repeat;
+use ndarray::prelude::*;
 
-fn nth_digit_pattern(n: usize) -> impl Iterator<Item=i32>
+fn nth_digit_pattern(n: usize, len: usize) -> impl Iterator<Item=i32>
 {
     let p0 = repeat(0).take(n-1);
     let p1 = repeat(1).take(n);
@@ -9,47 +10,77 @@ fn nth_digit_pattern(n: usize) -> impl Iterator<Item=i32>
     let p3 = repeat(-1).take(n);
     let p4 = repeat(0).take(n);
 
-    p0.chain(p1.chain(p2).chain(p3).chain(p4).cycle())
-}
-fn compute_fft_phase(input: &Vec<i32>) -> Vec<i32>
-{
-    let n = input.len();
-    // let input_vec = Array::from_shape_vec((1, n), input).unwrap();
-    // let mut pattern = Array::zeros((n, n));
-    // let mut input_mat = Array::zeros((n, n));
-    // // input_mat.fill(input_vec);
-
-    // println!("{:?}", input_mat);
-    // Vec::new()
-
-    let mut output = Vec::new();
-    for i in 0..n
-    {
-        let pattern_gen = nth_digit_pattern(i+1).take(n);
-        let out_digit = input.iter().zip(pattern_gen)
-                                .fold(0, |acc, (x, y)| acc + x * y);
-        output.push((out_digit % 10).abs());
-    }
-    output
+    p0.chain(p1.chain(p2).chain(p3).chain(p4).cycle()).take(len)
 }
 fn compute_fft(input: &Vec<i32>, phases: i32) -> Vec<i32>
 {
-    let mut input = input;
-    let mut output = Vec::new();
+    let mut input_vec = create_input_vec(&input);
+    let n = input.len();
+    let pattern = compute_pattern_matrix(n);
+
+    let mut output = Array::zeros((n, 1));
     for _ in 0..phases
     {
-        output = compute_fft_phase(&input);
-        input = &output;
+        output = compute_fft_phase_ndarray(&input_vec, &pattern);
+        input_vec.assign(&output);
     }
     output.iter().cloned().collect()
 }
+fn create_input_vec(input: &Vec<i32>) -> Array2<i32>
+{
+    let n = input.len();
+    Array::from_shape_vec((n, 1), input.clone()).unwrap()
+}
+fn compute_pattern_matrix(n: usize) -> Array2<i32>
+{
+    let mut pattern = Array::zeros((n, n));
+    
+    for i in 0..n
+    {
+        let pattern_row = Array::from_shape_vec((1, n), nth_digit_pattern(i+1, n).collect())
+                          .unwrap();
+        pattern.slice_mut(s![i.., ..]).assign(&pattern_row);
+    }
+    pattern
+}
+fn compute_fft_phase_ndarray(input_vec: &Array2<i32>, pattern_mat: &Array2<i32>) -> Array2<i32>
+{
+    let n = input_vec.len();
+    println!("n is {}", n);
+    
+    let mut output = pattern_mat.dot(input_vec);
+    output.mapv_inplace(|d| (d % 10).abs());
+
+    output
+}
+fn solve_part_b(input: &Vec<i32>) -> String 
+{
+    let n = input.len();
+
+    let offset = input.iter().take(7).rev().enumerate()
+                        .fold(0, |acc, (i, d)| acc + 10i32.pow(i as u32) * d);
+
+    let real_input: Vec<i32> = input.iter().cloned().cycle().take(n * 10000).collect();
+    let fft = compute_fft(&real_input, 100);
+
+    let message: Vec<_> = fft.iter().skip(offset as usize).take(8).collect();
+    let part_b = message.iter().map(|i| i.to_string())
+                        .collect::<Vec<String>>().join("");
+
+    part_b
+}
 fn main()
 {
-    let input = read_stdin();
+    // let input = read_stdin();
+    let input = "12345678";
     let digits: Vec<i32> = parse_digits(&input).map(|i| i as i32).collect();
+
     let out = compute_fft(&digits, 100);
     let part_a = out.iter().take(8).map(|i| i.to_string()).collect::<Vec<String>>().join("");
     println!("Part A: {}", part_a);
+
+    let part_b = solve_part_b(&digits);
+    println!("Part B: {}", part_b);
 }
 
 #[cfg(test)]
@@ -58,24 +89,18 @@ mod tests {
     #[test]
     fn test_day16_base_pattern()
     {
-        let output: Vec<_> = nth_digit_pattern(1).take(8).collect();
+        let output: Vec<_> = nth_digit_pattern(1, 8).collect();
         assert_eq!(output, vec![1, 0, -1, 0, 1, 0, -1, 0]);
 
-        let output: Vec<_> = nth_digit_pattern(2).take(8).collect();
+        let output: Vec<_> = nth_digit_pattern(2, 8).collect();
         assert_eq!(output, vec![0, 1, 1, 0, 0, -1, -1, 0]);
 
-        let output: Vec<_> = nth_digit_pattern(3).take(11).collect();
+        let output: Vec<_> = nth_digit_pattern(3, 11).collect();
         assert_eq!(output, vec![0, 0, 1, 1, 1, 0, 0, 0, -1, -1, -1]);
     }
     #[test]
     fn test_day16_fft()
     {
-        let input = vec![1,2,3,4,5,6,7,8];
-        let out = compute_fft_phase(&input);
-        assert_eq!(out, vec![4, 8, 2, 2, 6, 1, 5, 8]);
-        let out = compute_fft_phase(&out);
-        assert_eq!(out, vec![3, 4, 0, 4, 0, 4, 3, 8]);
-
         let input = parse_digits("80871224585914546619083218645595")
                                 .map(|i| i as i32).collect();
         let output = compute_fft(&input, 100).into_iter().take(8).collect::<Vec<_>>();
@@ -90,5 +115,13 @@ mod tests {
                                 .map(|i| i as i32).collect();
         let output = compute_fft(&input, 100).into_iter().take(8).collect::<Vec<_>>();
         assert_eq!(output, vec![5, 2, 4, 3, 2, 1, 3, 3]);
+    }
+
+    #[test]
+    fn test_day16_partb()
+    {
+        let input = parse_digits("03036732577212944063491565474664")
+                        .map(|i| i as i32).collect();
+        assert_eq!(solve_part_b(&input), "84462026");
     }
 }
