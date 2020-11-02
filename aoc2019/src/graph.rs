@@ -1,4 +1,5 @@
 /// Based on http://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/
+#[derive(Debug)]
 pub struct Graph {
     nodes: Vec<NodeData>,
     edges: Vec<EdgeData>,

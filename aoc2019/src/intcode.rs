@@ -162,6 +162,7 @@ impl IntComputer {
     // Resets VM to plain state
     pub fn reset(&mut self)
     {
+        self.cpu_state = CpuState::RUNNING;
         self.relative_base = 0;
         self.input.clear();
         self.output.clear();
