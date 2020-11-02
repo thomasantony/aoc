@@ -225,7 +225,7 @@ impl Robot
         }
         (map, o2_pos)
     }
-    pub fn solve_part_a(&mut self) -> usize
+    pub fn solve_part_a(&mut self) -> (Coord, Vec<Coord>)
     {
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock().into_raw_mode().unwrap();
@@ -241,7 +241,7 @@ impl Robot
 
         write!(stdout, "{}{}{}", cursor::Restore, style::Reset, cursor::Goto(1, 44)).ok();
         stdout.flush().unwrap();
-        path.len() -1
+        (o2_pos, path)
     }
     pub fn draw_path<W: Write>(&self, mut out: W, path: &Vec<Coord>, center: Coord, width: i64, height: i64)
     {
@@ -295,5 +295,6 @@ fn main()
     let program: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 
     let mut robot = Robot::new(&program);
-    println!("Part A: {}", robot.solve_part_a());
+    let (o2_pos, path) = robot.solve_part_a();
+    println!("Part A: {}", path.len() - 1);
 }
