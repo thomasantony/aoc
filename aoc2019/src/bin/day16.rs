@@ -145,7 +145,5 @@ mod tests {
         let input = parse_digits("03081770884921959731165446850517")
                         .map(|i| i as i32).collect();
         assert_eq!(solve_part_b(&input), "53553731");
-        
-        
     }
 }
