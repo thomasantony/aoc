@@ -155,6 +155,53 @@ pub trait GenericGraph<NodeType: Debug + PartialEq + Clone + Hash + Eq> {
     fn vertices(&self) -> Vec<NodeType>;
 }
 
+pub trait BFSGraph<NodeType: Debug + PartialEq + Clone + Hash + Eq> {
+    fn successors(&self, node: &NodeType) -> Vec<NodeType>;
+    fn search_with<F>(
+        &self,
+        start_node: &NodeType,
+        is_goal_fn: F
+    ) -> Vec<NodeType> 
+        where F : Fn(&NodeType) -> bool
+    {
+        use std::collections::VecDeque;
+        use std::collections::HashSet;
+        use std::collections::HashMap;
+
+        let mut discovered = HashSet::new();
+        let mut q = VecDeque::new();
+        q.push_back(start_node.clone());
+        discovered.insert(start_node.clone());
+
+        let mut prev: HashMap<NodeType, NodeType> = HashMap::new();
+        while !q.is_empty() 
+        {
+            let v = q.pop_front().unwrap();
+            if is_goal_fn(&v)
+            {
+                let mut output = vec![v.clone()];
+                let mut current = &v;
+                while let Some(parent) = prev.get(current)
+                {
+                    output.push(parent.clone());
+                    current = parent;
+                }
+                return output;
+            }
+            for w in self.successors(&v)
+            {
+                if !discovered.contains(&w)
+                {
+                    discovered.insert(w.clone());
+                    prev.insert(w.clone(), v.clone());
+                    q.push_back(w);
+                }
+            }
+        }
+        return Vec::new();
+    }
+}
+
 // Djikstra's algorithm for a grid
 pub fn djikstra_generic<NodeType: Debug + PartialEq + Clone + Hash + Eq, G: GenericGraph<NodeType>>(
     map: &G, start_node: NodeType, goal_node: NodeType) -> Vec<NodeType>

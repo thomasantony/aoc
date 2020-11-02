@@ -34,7 +34,7 @@ impl From<char> for CellType {
         if c == '#' 
         {
             CellType::Wall
-        } else if c == '.'
+        } else if c == '.' || c == '@'
         {
             CellType::Empty
         } else if c.is_ascii_uppercase()
@@ -50,27 +50,43 @@ impl From<char> for CellType {
 }
 pub struct Map {
     grid: HashMap<Coord, CellType>,
-    passable_cells: HashSet<Coord>
+    passable_cells: HashSet<Coord>,
+    start_pos: Coord,
+    num_keys: usize,
 }
 impl Map {
     pub fn from(input: &str) -> Self {
         let mut grid = HashMap::new();
         let mut passable_cells = HashSet::new();
+        let mut start_pos = (-1, -1);
+        let mut num_keys = 0;
         for (row, line) in input.lines().enumerate()
         {
             for (col, c) in line.chars().enumerate()
             {
+                if c == '@'
+                {
+                    start_pos = (row as i32, col as i32);
+                }
                 let cell = CellType::from(c);
                 if cell != CellType::Wall
                 {
                     passable_cells.insert((row as i32, col as i32));
                 }
+
+                match cell {
+                    CellType::Key(_) => {num_keys += 1},
+                    _ => {}
+                }
                 grid.insert((row as i32, col as i32), cell);
             }
         }
-        Self{
+        Self
+        {
             grid,
-            passable_cells
+            passable_cells,
+            start_pos,
+            num_keys
         }
     }
     fn get_new_node_if_passable(&self, node_from: &Node, new_cell_pos: Coord) -> Option<Node>
@@ -98,6 +114,7 @@ impl Map {
                 CellType::Key(key) => {
                     let mut new_keys = available_keys.clone();
                     new_keys.push(key.clone());
+                    new_keys.dedup();
                     Some(Node { 
                         pos: new_cell_pos,
                         keys: new_keys
@@ -113,7 +130,11 @@ impl Map {
             }
         }
     }
-    fn get_adjacent_cells(&self, node: &Node) -> Vec<Node>
+}
+
+use ::aoc2019::graph::BFSGraph;
+impl BFSGraph<Node> for Map {
+    fn successors(&self, node: &Node) -> Vec<Node>
     {
         let above_pos = (node.pos.0 - 1, node.pos.1);
         let below_pos = (node.pos.0 + 1, node.pos.1);
@@ -128,7 +149,7 @@ impl Map {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Node
 {
     pos: Coord,
@@ -139,4 +160,22 @@ fn main()
 {
     let input = include_str!("../../inputs/day18.txt").to_string();
     let map = Map::from(&input);
+
+    let start_node = Node {
+        pos: map.start_pos.clone(),
+        keys: Vec::new()
+    };
+    let path = map.search_with(&start_node, |n| {
+        n.keys.len() == map.num_keys
+    });
+    println!("{:?}", path);
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_day18_search()
+    {
+
+    }
 }
