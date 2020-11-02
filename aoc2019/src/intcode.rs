@@ -195,6 +195,10 @@ impl IntComputer {
         self.memory.splice(..size, program.clone().into_iter());
         self
     }
+    pub fn set_input(&mut self, values: &Vec<i64>) -> &mut Self {
+        self.input = VecDeque::from(values.clone());
+        self
+    }
     pub fn push_input(&mut self, value: i64) -> &mut Self {
         self.input.push_back(value);
         self
