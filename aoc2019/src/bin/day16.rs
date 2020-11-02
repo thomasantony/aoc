@@ -65,9 +65,8 @@ fn solve_part_b(input: &Vec<i32>) -> String
     assert!(offset as i32 > (real_input.len() as i32)/2, "This shortcut depends on offset being > n/2");
     let mut input: Vec<_> = real_input.iter().skip(offset as usize).cloned().collect();
     let n = input.len();
-    // let input_vec = create_input_vec(&input);
     let mut fft = vec![0; n];
-    for c in 0..100
+    for _ in 0..100
     {
         fft = vec![0; n];
         let mut cumulative_sum: i32 = input[n-1];
@@ -88,12 +87,11 @@ fn solve_part_b(input: &Vec<i32>) -> String
 fn main()
 {
     let input = read_stdin();
-    // let input = "12345678";
     let digits: Vec<i32> = parse_digits(&input).map(|i| i as i32).collect();
 
-    // let out = compute_fft(&digits, 100);
-    // let part_a = out.iter().take(8).map(|i| i.to_string()).collect::<Vec<String>>().join("");
-    // println!("Part A: {}", part_a);
+    let out = compute_fft(&digits, 100);
+    let part_a = out.iter().take(8).map(|i| i.to_string()).collect::<Vec<String>>().join("");
+    println!("Part A: {}", part_a);
 
     let part_b = solve_part_b(&digits);
     println!("Part B: {}", part_b);
