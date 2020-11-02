@@ -5,7 +5,12 @@ use std::collections::HashMap;
 type Coord = (i32, i32);
 type Grid = HashMap<Coord, String>;
 
-fn load_map(input: &Vec<i64>) -> Grid
+fn find_intersections(map: &Grid, n_rows: usize, n_cols: usize) -> Vec<Coord>
+{
+    
+    Vec::new()
+}
+fn load_map(input: &Vec<i64>) -> (Grid, i32, i32)
 {
     let mut row = 0;
     let mut col = 0;
@@ -23,7 +28,7 @@ fn load_map(input: &Vec<i64>) -> Grid
         };
         col += 1; 
     }
-    map
+    (map, row+1, col)
 }
 fn main()
 {
@@ -52,11 +57,13 @@ mod tests {
                                ..#...#...#..\n\
                                ..#####...^..";
         let input_vec: Vec<_> = input_str.chars().map(|c| c as i64).collect();
-        let map = load_map(&input_vec);
+        let (map, nrows, ncols) = load_map(&input_vec);
 
         assert_eq!(map[&(0,0)], ".");
         assert_eq!(map[&(0,2)], "#");
         assert_eq!(map[&(1,2)], "#");
         assert_eq!(map[&(6,10)], "^");
+        assert_eq!(nrows, 7);
+        assert_eq!(ncols, 13);
     }
 }
