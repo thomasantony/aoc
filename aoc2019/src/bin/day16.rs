@@ -16,7 +16,7 @@ fn compute_fft(input: &Vec<i32>, phases: i32) -> Vec<i32>
 {
     let mut input_vec = create_input_vec(&input);
     let n = input.len();
-    let pattern = compute_pattern_matrix(n);
+    let pattern = compute_pattern_matrix(n, 0);
 
     let mut output = Array::zeros((n, 1));
     for _ in 0..phases
@@ -31,11 +31,11 @@ fn create_input_vec(input: &Vec<i32>) -> Array2<i32>
     let n = input.len();
     Array::from_shape_vec((n, 1), input.clone()).unwrap()
 }
-fn compute_pattern_matrix(n: usize) -> Array2<i32>
+fn compute_pattern_matrix(n: usize, offset: usize) -> Array2<i32>
 {
     let mut pattern = Array::zeros((n, n));
     
-    for i in 0..n
+    for i in offset..n
     {
         let pattern_row = Array::from_shape_vec((1, n), nth_digit_pattern(i+1, n).collect())
                           .unwrap();
@@ -61,9 +61,25 @@ fn solve_part_b(input: &Vec<i32>) -> String
                         .fold(0, |acc, (i, d)| acc + 10i32.pow(i as u32) * d);
 
     let real_input: Vec<i32> = input.iter().cloned().cycle().take(n * 10000).collect();
-    let fft = compute_fft(&real_input, 100);
 
-    let message: Vec<_> = fft.iter().skip(offset as usize).take(8).collect();
+    assert!(offset as i32 > (real_input.len() as i32)/2, "This shortcut depends on offset being > n/2");
+    let mut input: Vec<_> = real_input.iter().skip(offset as usize).cloned().collect();
+    let n = input.len();
+    // let input_vec = create_input_vec(&input);
+    let mut fft = vec![0; n];
+    for c in 0..100
+    {
+        fft = vec![0; n];
+        let mut cumulative_sum: i32 = input[n-1];
+        fft[n-1] = cumulative_sum % 10;
+        for i in 1..n
+        {
+            cumulative_sum = cumulative_sum + input[n-i-1];
+            fft[n-i-1] = cumulative_sum % 10;
+            input[n-i-1] = fft[n-i-1];
+        }
+    }
+    let message: Vec<_> = fft.iter().take(8).collect();
     let part_b = message.iter().map(|i| i.to_string())
                         .collect::<Vec<String>>().join("");
 
@@ -71,13 +87,13 @@ fn solve_part_b(input: &Vec<i32>) -> String
 }
 fn main()
 {
-    // let input = read_stdin();
-    let input = "12345678";
+    let input = read_stdin();
+    // let input = "12345678";
     let digits: Vec<i32> = parse_digits(&input).map(|i| i as i32).collect();
 
-    let out = compute_fft(&digits, 100);
-    let part_a = out.iter().take(8).map(|i| i.to_string()).collect::<Vec<String>>().join("");
-    println!("Part A: {}", part_a);
+    // let out = compute_fft(&digits, 100);
+    // let part_a = out.iter().take(8).map(|i| i.to_string()).collect::<Vec<String>>().join("");
+    // println!("Part A: {}", part_a);
 
     let part_b = solve_part_b(&digits);
     println!("Part B: {}", part_b);
@@ -123,5 +139,15 @@ mod tests {
         let input = parse_digits("03036732577212944063491565474664")
                         .map(|i| i as i32).collect();
         assert_eq!(solve_part_b(&input), "84462026");
+
+        let input = parse_digits("02935109699940807407585447034323")
+                        .map(|i| i as i32).collect();
+        assert_eq!(solve_part_b(&input), "78725270");
+
+        let input = parse_digits("03081770884921959731165446850517")
+                        .map(|i| i as i32).collect();
+        assert_eq!(solve_part_b(&input), "53553731");
+        
+        
     }
 }
