@@ -85,7 +85,7 @@ fn show_map(map: &Grid, nrows: i32, ncols: i32)
 {
     for i in 0..nrows {
         for j in 0..ncols {
-            print!("{:?}", map.get(&(i, j)).unwrap());
+            print!("{}", map.get(&(i, j)).unwrap());
         }
         println!();
     }
