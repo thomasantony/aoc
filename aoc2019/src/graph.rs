@@ -186,6 +186,7 @@ pub trait BFSGraph<NodeType: Debug + PartialEq + Clone + Hash + Eq> {
                     output.push(parent.clone());
                     current = parent;
                 }
+                output.reverse();
                 return output;
             }
             for w in self.successors(&v)

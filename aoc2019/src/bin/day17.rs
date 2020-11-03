@@ -173,9 +173,6 @@ fn main()
     let cmd_b = cmd_b.iter().map(|c| format!("{},{}",c.0, c.1)).join(",") + "\n";
     let cmd_c = cmd_c.iter().map(|c| format!("{},{}",c.0, c.1)).join(",") + "\n";
     
-    let command_str = cmd0.clone() + &cmd_a + &cmd_b + &cmd_c;
-    // let command_vec: Vec<_> = command_str.chars().map(|c| c as i64).collect();
-    
     // Activate robot
     program[0] = 2;
     vm.reset();

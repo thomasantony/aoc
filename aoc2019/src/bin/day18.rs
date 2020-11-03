@@ -29,6 +29,23 @@ pub enum CellType {
     Door(Door),
     Key(Key),
 }
+use std::cmp::Ordering;
+impl Ord for Key {
+    fn cmp(&self, other: &Key) -> Ordering {
+        // Notice that the we flip the ordering on costs.
+        // In case of a tie we compare positions - this step is necessary
+        // to make implementations of `PartialEq` and `Ord` consistent.
+        other.0.cmp(&self.0)
+    }
+}
+
+// `PartialOrd` needs to be implemented as well.
+impl PartialOrd for Key {
+    fn partial_cmp(&self, other: &Key) -> Option<Ordering> {
+        Some(self.0.cmp(&other.0))
+    }
+}
+
 impl From<char> for CellType {
     fn from(c: char) -> Self {
         if c == '#' 
@@ -113,8 +130,7 @@ impl Map {
                 },
                 CellType::Key(key) => {
                     let mut new_keys = available_keys.clone();
-                    new_keys.push(key.clone());
-                    new_keys.dedup();
+                    new_keys.insert(key.clone());
                     Some(Node { 
                         pos: new_cell_pos,
                         keys: new_keys
@@ -148,34 +164,83 @@ impl BFSGraph<Node> for Map {
                 .collect()
     }
 }
+use std::iter::FromIterator;
+use std::collections::BTreeSet;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Node
 {
     pos: Coord,
-    keys: Vec<Key>
+    keys: BTreeSet<Key>
 }
 
-fn main()
+fn solve_part_a(map: &Map) -> usize
 {
-    let input = include_str!("../../inputs/day18.txt").to_string();
-    let map = Map::from(&input);
-
     let start_node = Node {
         pos: map.start_pos.clone(),
-        keys: Vec::new()
+        keys: BTreeSet::new()
     };
     let path = map.search_with(&start_node, |n| {
         n.keys.len() == map.num_keys
     });
-    println!("{:?}", path);
+    path.len() - 1
+}
+fn main()
+{
+    let input = include_str!("../../inputs/day18.txt").to_string();
+    
+    let map = Map::from(&input);
+    let part_a = solve_part_a(&map);
+    println!("{:?}", part_a);
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     #[test]
-    fn test_day18_search()
+    fn test_day18_part_a()
     {
+        let input = "#########\n\
+                    #b.A.@.a#\n\
+                    #########".to_string();
+        let map = Map::from(&input);
+        assert_eq!(solve_part_a(&map), 8);
+        
+        let input = "########################\n\
+                    #f.D.E.e.C.b.A.@.a.B.c.#\n\
+                    ######################.#\n\
+                    #d.....................#\n\
+                    ########################".to_string();
+        let map = Map::from(&input);
+        assert_eq!(solve_part_a(&map), 86);
 
+        let input = "########################\n\
+                     #...............b.C.D.f#\n\
+                     #.######################\n\
+                     #.....@.a.B.c.d.A.e.F.g#\n\
+                     ########################".to_string();
+        let map = Map::from(&input);
+        assert_eq!(solve_part_a(&map), 132);
+
+        let input = "#################\n\
+                    #i.G..c...e..H.p#\n\
+                    ########.########\n\
+                    #j.A..b...f..D.o#\n\
+                    ########@########\n\
+                    #k.E..a...g..B.n#\n\
+                    ########.########\n\
+                    #l.F..d...h..C.m#\n\
+                    #################".to_string();
+        let map = Map::from(&input);
+        assert_eq!(solve_part_a(&map), 136);
+
+        let input = "########################\n\
+                    #@..............ac.GI.b#\n\
+                    ###d#e#f################\n\
+                    ###A#B#C################\n\
+                    ###g#h#i################\n\
+                    ########################".to_string();
+        let map = Map::from(&input);
+        assert_eq!(solve_part_a(&map), 81);
     }
 }
