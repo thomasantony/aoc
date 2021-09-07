@@ -4,6 +4,7 @@
   (:require [aoc2020.day03 :as day03])
   (:require [aoc2020.day04 :as day04])
   (:require [aoc2020.day05 :as day05])
+  (:require [aoc2020.day06 :as day06])
   (:gen-class))
 
 (defn -main
@@ -24,9 +25,13 @@
   ;; (println "Part 1 -" (day04/part01 (slurp "inputs/day04.txt")))
   ;; (println "Part 2 -" (day04/part02 (slurp "inputs/day04.txt")))
   
-  (println "Day 05")
-  (println "Part 1 -" (day05/part01 (slurp "inputs/day05.txt")))
-  (println "Part 2 -" (day05/part02 (slurp "inputs/day05.txt")))
+  ;; (println "Day 05")
+  ;; (println "Part 1 -" (day05/part01 (slurp "inputs/day05.txt")))
+  ;; (println "Part 2 -" (day05/part02 (slurp "inputs/day05.txt")))
+  
+  (println "Day 06")
+  (println "Part 1 -" (day06/part01 (slurp "inputs/day06.txt")))
+  (println "Part 2 -" (day06/part02 (slurp "inputs/day06.txt"))) 
 )
 (comment
   (-main)
