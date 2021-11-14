@@ -42,6 +42,10 @@ dotted black bags contain no other bags.")
 ;; all colors "below" shiny-gold
 (def any? (comp not not-any?))
 
+(defn get_colors_in_container [color_map container]
+  (map :color (get color_map container))
+  )
+
 (defn dig_for_color [color_map query_color container]
  (let [colors_to_remove (cons query_color (map :color (color_map query_color)))
        color_map (dissoc color_map colors_to_remove)
