@@ -15,7 +15,7 @@
 
   (println "Day 02")
   (println "Part 1 -" (day02/part01 (slurp "inputs/day02.txt")))
-  ;; (println "Part 2 -" (day02/part02 (slurp "inputs/day02.txt")))
+  (println "Part 2 -" (day02/part02 (slurp "inputs/day02.txt")))
 
   ;; (println "Day 03")
   ;; (println "Part 1 -" (day03/part01 (slurp "inputs/day03.txt")))

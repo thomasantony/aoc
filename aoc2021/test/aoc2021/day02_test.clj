@@ -9,7 +9,7 @@
     (let [output (part01 demo_input)]
       (is (= output 150)))))
 
-;; (deftest part02-test
-;;   (testing "Day 02 Part 2"
-;;     (let [output (part02 demo_input)]
-;;       (is (= output 5)))))
+(deftest part02-test
+  (testing "Day 02 Part 2"
+    (let [output (part02 demo_input)]
+      (is (= output 900)))))
