@@ -1,4 +1,4 @@
-use std::collections::{VecDeque, HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use itermore::IterMore;
 
@@ -31,13 +31,16 @@ struct Board {
 }
 impl Board {
     pub fn from_str_iter(board_def: [&str; 5]) -> Self {
-        let number_vec: Vec<_> = board_def.iter()
-            .map(|row| row.split_ascii_whitespace()
-                                .map(str::parse::<u32>)
-                                .map(Result::unwrap)
-                                .collect::<Vec<_>>())
+        let number_vec: Vec<_> = board_def
+            .iter()
+            .map(|row| {
+                row.split_ascii_whitespace()
+                    .map(str::parse::<u32>)
+                    .map(Result::unwrap)
+                    .collect::<Vec<_>>()
+            })
             .collect();
-        
+
         let mut numbers = HashMap::new();
         for (row_idx, row) in number_vec.into_iter().enumerate() {
             for (col_idx, num) in row.into_iter().enumerate() {
@@ -50,10 +53,8 @@ impl Board {
             cols_hit: (0..5).map(|_| HashSet::new()).collect(),
         }
     }
-    pub fn play(&mut self, number: u32)
-    {
-        if self.numbers.contains_key(&number)
-        {
+    pub fn play(&mut self, number: u32) {
+        if self.numbers.contains_key(&number) {
             let (row, col) = self.numbers.get(&number).unwrap();
 
             // Update rows_hit and cols_hit
@@ -61,54 +62,69 @@ impl Board {
             self.cols_hit.get_mut(*col).unwrap().insert(number);
         }
     }
-    pub fn has_won(&self) -> bool
-    {
-        let has_winning_rows = self.rows_hit
-                                        .iter()
-                                        .any(|hit_numbers| hit_numbers.len() == 5);
-        let has_winning_cols = self.cols_hit
-                                        .iter()
-                                        .any(|hit_numbers| hit_numbers.len() == 5);
+    pub fn has_won(&self) -> bool {
+        let has_winning_rows = self
+            .rows_hit
+            .iter()
+            .any(|hit_numbers| hit_numbers.len() == 5);
+        let has_winning_cols = self
+            .cols_hit
+            .iter()
+            .any(|hit_numbers| hit_numbers.len() == 5);
         has_winning_rows || has_winning_cols
     }
-    pub fn _get_winning_numbers(&self) -> Option<Vec<u32>>
-    {
-        let winning_rows = self.rows_hit
-                                        .iter()
-                                        .filter(|hit_numbers| hit_numbers.len() == 5)
-                                        .collect::<Vec<_>>();
-        let winning_cols = self.cols_hit
-                                        .iter()
-                                        .filter(|hit_numbers| hit_numbers.len() == 5)
-                                        .collect::<Vec<_>>();
-        
-        if !winning_rows.is_empty()
-        {
-            Some(winning_rows.into_iter().flatten().cloned().collect::<Vec<_>>())
-        } else if !winning_cols.is_empty()
-        {
-            Some(winning_cols.into_iter().flatten().cloned().collect::<Vec<_>>())
+    pub fn _get_winning_numbers(&self) -> Option<Vec<u32>> {
+        let winning_rows = self
+            .rows_hit
+            .iter()
+            .filter(|hit_numbers| hit_numbers.len() == 5)
+            .collect::<Vec<_>>();
+        let winning_cols = self
+            .cols_hit
+            .iter()
+            .filter(|hit_numbers| hit_numbers.len() == 5)
+            .collect::<Vec<_>>();
+
+        if !winning_rows.is_empty() {
+            Some(
+                winning_rows
+                    .into_iter()
+                    .flatten()
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            )
+        } else if !winning_cols.is_empty() {
+            Some(
+                winning_cols
+                    .into_iter()
+                    .flatten()
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            )
         } else {
             None
         }
     }
-    pub fn get_unmarked_numbers(&self) -> Vec<u32>
-    {
-        let marked_numbers = self.rows_hit.iter().flatten().chain(
-            self.cols_hit.iter().flatten()
-        ).collect::<Vec<_>>();
-        self.numbers.keys().filter(|n| !marked_numbers.contains(n)).cloned().collect()
+    pub fn get_unmarked_numbers(&self) -> Vec<u32> {
+        let marked_numbers = self
+            .rows_hit
+            .iter()
+            .flatten()
+            .chain(self.cols_hit.iter().flatten())
+            .collect::<Vec<_>>();
+        self.numbers
+            .keys()
+            .filter(|n| !marked_numbers.contains(n))
+            .cloned()
+            .collect()
     }
 }
-fn solve_part_1(mut boards: Vec<Board>, numbers_drawn: Vec<u32>)
-{
+fn solve_part_1(mut boards: Vec<Board>, numbers_drawn: Vec<u32>) {
     let mut has_won: bool = false;
     for number in numbers_drawn {
-        for b in boards.iter_mut()
-        {
+        for b in boards.iter_mut() {
             b.play(number);
-            if b.has_won()
-            {
+            if b.has_won() {
                 has_won = true;
 
                 let unmarked_numbers = b.get_unmarked_numbers();
@@ -116,31 +132,25 @@ fn solve_part_1(mut boards: Vec<Board>, numbers_drawn: Vec<u32>)
                 println!("Solution for part 1: {}", solution);
             }
         }
-        if has_won
-        {
+        if has_won {
             break;
         }
     }
 }
-fn solve_part_2(mut boards: Vec<Board>, numbers_drawn: Vec<u32>)
-{
+fn solve_part_2(mut boards: Vec<Board>, numbers_drawn: Vec<u32>) {
     let mut winning_board_index: Option<usize> = None;
     let mut final_score: u32 = 0;
     for number in numbers_drawn {
-        for (idx, b) in boards.iter_mut().enumerate()
-        {
+        for (idx, b) in boards.iter_mut().enumerate() {
             // Ignore boards that have already won
-            if !b.has_won()
-            {
+            if !b.has_won() {
                 b.play(number);
-                if b.has_won()
-                {
+                if b.has_won() {
                     winning_board_index = Some(idx);
                 }
             }
         }
-        if let Some(winning_index) = winning_board_index
-        {
+        if let Some(winning_index) = winning_board_index {
             let board = boards.get(winning_index).unwrap();
             let unmarked_numbers = board.get_unmarked_numbers();
             final_score = unmarked_numbers.into_iter().sum::<u32>() * number;
@@ -153,23 +163,20 @@ fn main() {
     let input = include_str!("../../../inputs/day04.txt");
     // let input = DEMO_INPUT.to_owned();
 
-    let mut input_lines: VecDeque<_> = input.lines()
-                                        .filter(|&s| !s.is_empty())
-                                        .collect();
+    let mut input_lines: VecDeque<_> = input.lines().filter(|&s| !s.is_empty()).collect();
     let numbers_drawn = input_lines
-                                .pop_front()
-                                .expect("Badly formatted input")
-                                .split(',')
-                                .map(|num_s| num_s.parse::<u32>().unwrap())
-                                .collect::<Vec<_>>();
+        .pop_front()
+        .expect("Badly formatted input")
+        .split(',')
+        .map(|num_s| num_s.parse::<u32>().unwrap())
+        .collect::<Vec<_>>();
 
     let mut boards: Vec<Board> = Vec::new();
 
-    for rows in input_lines.into_iter().chunks::<5>()
-    {
+    for rows in input_lines.into_iter().chunks::<5>() {
         boards.push(Board::from_str_iter(rows));
     }
-    
+
     solve_part_1(boards.clone(), numbers_drawn.clone());
     solve_part_2(boards, numbers_drawn);
 }
