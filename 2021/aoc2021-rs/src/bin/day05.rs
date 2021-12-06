@@ -1,5 +1,3 @@
-use aoc2021_rs::read_stdin;
-
 fn parse_line_info(line: &str) -> ((isize, isize), (isize, isize))
 {
     let pt = line.split(" -> ").map(|pt_str| {
@@ -21,8 +19,7 @@ fn main()
     // 0,0 -> 8,8
     // 5,5 -> 8,2";
     // let input = DEMO_INPUT.to_owned();
-
-    let input = read_stdin();
+    let input = include_str!("../../../inputs/day05.txt");
     
     let points = input.lines()
                                             .map(parse_line_info)
