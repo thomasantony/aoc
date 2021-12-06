@@ -1,3 +1,17 @@
+/// Day 04 - Giant Squid
+/// 
+/// Play bingo with a squid
+/// 
+/// Part 1
+/// 
+/// Find the board that wins first. Board keeps track of marked numbers in each row/col in a Vec<HashSet>
+/// The board has won if any hashset reaches 5 elements. Unmarked numbers are found by filtering out the 
+/// numbers present in the hashsets
+/// 
+/// Part 2
+/// Find the board that wins last. Use same procedures as part 1 but keep running until all numbers drawn.
+/// Ignore any board that wins in between.
+/// 
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use itermore::IterMore;
