@@ -1,3 +1,11 @@
+/// Day 05 - A Maze of Twisty Trampolines, All Alike
+/// 
+/// Part 1
+/// Find number of instruction cycles before exiting given instruction block
+/// 
+/// Part 2
+/// Same as part 1 but slightly different jumping rules
+/// 
 fn parse_input(input: &str) -> Vec<i32> {
     input
         .trim()

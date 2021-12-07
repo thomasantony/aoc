@@ -1,3 +1,8 @@
+/// Day 04 - High-Entropy Passphrases
+/// 
+/// Part 1 - Find passwords which do not contain repeating phrases
+/// Part 2 - Find passwords which do not contain phrases that are anagrams of each other
+/// 
 use std::collections::HashSet;
 
 fn is_valid_password_part01(passwd: &str) -> bool {

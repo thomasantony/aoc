@@ -1,19 +1,19 @@
 /// Day 5 - Hydrothermal Venture
-/// 
+///
 /// Find number of points where more than one line crosses
-/// 
-/// Brute-force method using `nalgebra` matrix. 
-/// 
+///
+/// Brute-force method using `nalgebra` matrix.
+///
 /// Part 1
-/// 
+///
 /// Filter out horizontal and vertical lines. Loop over them and fill in rows/cols.
 /// Map over matrix to find elements >= 2
-/// 
+///
 /// Part 2
-/// 
+///
 /// Initially tried Bresenham library. But this is not required as the lines are all at 45 deg.
 /// Loop over until line goes from x1, y1 to x2, y2 and then find elements >= 2 as before
-/// 
+///
 fn parse_line_info(line: &str) -> ((isize, isize), (isize, isize)) {
     let pt = line
         .split(" -> ")
