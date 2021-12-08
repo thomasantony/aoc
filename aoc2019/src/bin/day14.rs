@@ -1,7 +1,18 @@
-use ::aoc2019::*;
+/// Day 14 - Space Stoichiometry
+/// 
+/// Need to parse recipe book and figure out number of ORE needed to make 1 unit of fuel
+/// 
+/// Part 1
+/// 
+/// 1. Keep track of the recipes in a recipebook hashmap
+/// 2. A "need to make" hashmap is used. The main loop runs as long as this is not empty.
+/// 3. Fetch item to make. Find out how many to make. 
+/// 4. See if we have enough in "leftovers" pile and subtract from that
+/// 5. Figure out recipe and find out how many of the recipe to make based on requirement after leftovers.
+/// 6. Push ingredients into need-to-make map, unless it is ORE, in which case we increment counter
+///
 use std::collections::HashMap;
-use std::collections::VecDeque;
-use counter::Counter;
+use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct Component<'a> {
@@ -26,66 +37,63 @@ impl<'a> From<&'a str> for Component<'a>
 }
 
 type RecipeBook<'a> =  HashMap<&'a str, Recipe<'a>>;
-fn get_raw_material_for<'a>(product_name: &'a str, 
-    product_count: i32, 
-    recipes: &'a RecipeBook, 
-    extra_feed_stock: &mut Counter<&'a str>) -> Vec<(&'a str, i32)>
+
+fn compute_ore_required(recipes: &RecipeBook) -> i32
 {
-    let recipe = recipes.get(product_name).unwrap();
-    let recipe_output_count = recipe.output_count;
-
-    let extra_material_available = extra_feed_stock[&product_name] as i32;
+    let mut leftovers: HashMap<&str, i32> = HashMap::new();
     
-    let product_needed = (product_count - extra_material_available).max(0);
-    let extra_material_remaining = (extra_material_available-product_count).max(0);
-    extra_feed_stock[&product_name] = extra_material_remaining as usize;
+    // Says how many of a certain item we need
+    let mut need_to_make = HashMap::new();
+    need_to_make.insert("FUEL", 1);
 
-    if extra_material_available > 0
+    let mut ore_counter = 0;
+    // Still have things we need to make
+    while !need_to_make.is_empty()
     {
-        println!("Used {} x {} from extra stock instead of making more", product_count - product_needed, &product_name);
-    }
-
-    let mut output = Vec::new();
-    for raw_material in recipe.ingredients.iter() 
-    {
-        let raw_material_per_unit = raw_material.count;
-        let raw_material_needed = product_needed * raw_material_per_unit;
-
-        let extra_material_available = extra_feed_stock[&raw_material.name] as i32;
-        let raw_material_still_needed = (raw_material_needed - extra_material_available).max(0);
-        let extra_material_remaining = (extra_material_available-raw_material_needed).max(0);
+        let first_key = need_to_make.keys().next().cloned().unwrap();
+        let (item_name, mut item_qty) = need_to_make.remove_entry(first_key).unwrap();
         
-        if extra_material_available > 0
+        // First check leftovers
+        if let Some(leftover_qty) = leftovers.get(item_name).cloned()
         {
-            println!("Used {} from extra stock", &raw_material.name);
+            let qty_from_leftovers = leftover_qty.min(item_qty);
+            // Subtract the lower of leftover qty or item_qty
+            item_qty -= qty_from_leftovers;
+            *leftovers.entry(item_name).or_default() -= qty_from_leftovers;
         }
-        if raw_material_still_needed > 0
+
+        // Still need more, so we pull from recipe book
+        if item_qty >= 0
         {
-            output.push((raw_material.name, raw_material_needed));
+            let recipe = recipes.get(&item_name).expect("Recipe not found");
+
+            // Number of multiples of recipe item required to be produced
+            let recipe_qty = (item_qty as f32/recipe.output_count as f32).ceil() as i32;
+
+            // Add all ingredients to required list or update ore counter if ore is needed
+            // Multiply by item_qty to account for needing multiple units
+            for ingredient in recipe.ingredients.iter() {
+                let ingredient_qty = ingredient.count * recipe_qty;
+                if ingredient.name == "ORE"
+                {
+                    ore_counter += ingredient_qty;
+                }else{
+                    *need_to_make.entry(ingredient.name).or_insert(0) += ingredient_qty;
+                }
+            }
+            // Add any extras to leftovers
+            let extra_output = recipe_qty * recipe.output_count - item_qty;
+            *leftovers.entry(item_name).or_insert(0) += extra_output;
         }
-        extra_feed_stock[&raw_material.name] = extra_material_remaining as usize;
     }
-    let num_reactions = (product_needed as f32/recipe_output_count as f32).ceil() as i32;
-    let total_output = recipe_output_count * num_reactions;
-    
-    let extra_output = total_output - product_needed;
-    println!("{}: recipe creates {}, we need {}, we make {}, extra {} with {} rns",
-        product_name,
-        recipe_output_count,
-        product_needed,
-        total_output,
-        extra_output,
-        num_reactions
-    );
-    extra_feed_stock[&product_name] += extra_output as usize;
-    output
+    ore_counter
 }
-fn main()
+fn parse_recipe_book(input: &str) -> RecipeBook
 {
-    let input = include_str!("../../inputs/day14.txt").to_string();
+
     let lines = input.lines();
 
-    let mut recipes: HashMap<&str, Recipe> = HashMap::new();
+    let mut recipes: RecipeBook = HashMap::new();
     for line in lines
     {
         let parts = line.split(" => ").collect::<Vec<&str>>();
@@ -97,80 +105,84 @@ fn main()
         };
         recipes.insert(recipe_item.name, recipe);
     }
-   
-    // let mut stack = VecDeque::from(vec![ ("FUEL", 1.0f32)]);
-    let output:Vec<i32> = Vec::new();
-    let mut extra = Counter::new();
-    let mut q = VecDeque::from(vec![("FUEL", 1)]);
-    let mut total_ore = 0;
-    while let Some((product_name, product_count)) = q.pop_front()
+    recipes
+}
+fn main()
+{
+    let input = include_str!("../../inputs/day14.txt").to_string();
+    let recipes = parse_recipe_book(&input);
+    let part01_solution = compute_ore_required(&recipes);
+    println!("Part 1: {}", part01_solution);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn day_14_test_part_01()
     {
-        println!("Getting {} recipe", &product_name);
-        let feedstock = get_raw_material_for(product_name, product_count, &recipes, &mut extra);
+        let inputs = vec!["10 ORE => 10 A
+1 ORE => 1 B
+7 A, 1 B => 1 C
+7 A, 1 C => 1 D
+7 A, 1 D => 1 E
+7 A, 1 E => 1 FUEL",
 
-        
-        let ore_count: i32 = feedstock.iter()
-                                .filter_map(|(name, count)| {
-                                if name == &"ORE"{
-                                    Some(count)
-                                }else{None}}).sum();
-        println!("Added {} ore for {}", ore_count, product_name);
-        total_ore += ore_count;
-        q.extend(feedstock.into_iter().filter(|(name, count)| name != &"ORE"));
-        
-        println!("Q after: {:?}", &q);
-        println!("Extra after: {:?}\n", &extra);
+"9 ORE => 2 A
+8 ORE => 3 B
+7 ORE => 5 C
+3 A, 4 B => 1 AB
+5 B, 7 C => 1 BC
+4 C, 1 A => 1 CA
+2 AB, 3 BC, 4 CA => 1 FUEL",
+
+"157 ORE => 5 NZVS
+165 ORE => 6 DCFZ
+44 XJWVT, 5 KHKGT, 1 QDVJ, 29 NZVS, 9 GPVTF, 48 HKGWZ => 1 FUEL
+12 HKGWZ, 1 GPVTF, 8 PSHF => 9 QDVJ
+179 ORE => 7 PSHF
+177 ORE => 5 HKGWZ
+7 DCFZ, 7 PSHF => 2 XJWVT
+165 ORE => 2 GPVTF
+3 DCFZ, 7 NZVS, 5 HKGWZ, 10 PSHF => 8 KHKGT",
+
+"2 VPVL, 7 FWMGM, 2 CXFTF, 11 MNCFX => 1 STKFG
+17 NVRVD, 3 JNWZP => 8 VPVL
+53 STKFG, 6 MNCFX, 46 VJHF, 81 HVMC, 68 CXFTF, 25 GNMV => 1 FUEL
+22 VJHF, 37 MNCFX => 5 FWMGM
+139 ORE => 4 NVRVD
+144 ORE => 7 JNWZP
+5 MNCFX, 7 RFSQX, 2 FWMGM, 2 VPVL, 19 CXFTF => 3 HVMC
+5 VJHF, 7 MNCFX, 9 VPVL, 37 CXFTF => 6 GNMV
+145 ORE => 6 MNCFX
+1 NVRVD => 8 CXFTF
+1 VJHF, 6 MNCFX => 4 RFSQX
+176 ORE => 6 VJHF",
+
+"171 ORE => 8 CNZTR
+7 ZLQW, 3 BMBT, 9 XCVML, 26 XMNCP, 1 WPTQ, 2 MZWV, 1 RJRHP => 4 PLWSL
+114 ORE => 4 BHXH
+14 VRPVC => 6 BMBT
+6 BHXH, 18 KTJDG, 12 WPTQ, 7 PLWSL, 31 FHTLT, 37 ZDVW => 1 FUEL
+6 WPTQ, 2 BMBT, 8 ZLQW, 18 KTJDG, 1 XMNCP, 6 MZWV, 1 RJRHP => 6 FHTLT
+15 XDBXC, 2 LTCX, 1 VRPVC => 6 ZLQW
+13 WPTQ, 10 LTCX, 3 RJRHP, 14 XMNCP, 2 MZWV, 1 ZLQW => 1 ZDVW
+5 BMBT => 4 WPTQ
+189 ORE => 9 KTJDG
+1 MZWV, 17 XDBXC, 3 XCVML => 2 XMNCP
+12 VRPVC, 27 CNZTR => 2 XDBXC
+15 KTJDG, 12 BHXH => 5 XCVML
+3 BHXH, 2 VRPVC => 7 MZWV
+121 ORE => 7 VRPVC
+7 XCVML => 6 RJRHP
+5 BHXH, 4 VRPVC => 5 LTCX"];
+        let outputs = vec![31, 165, 13312, 180697, 2210736];
+
+        for (input, &expected_output) in inputs.iter().zip(outputs.iter())
+        {
+            let recipes = parse_recipe_book(input);
+            let output = compute_ore_required(&recipes);
+            assert_eq!(output, expected_output);
+        }
     }
-    println!("Total: {}", total_ore);
-
-
-    // let mut primary_materials: HashMap<&str, f32> = HashMap::new();
-    // let mut materials: HashMap<&str, f32> = HashMap::new();
-
-    // while let Some(item) = stack.pop_front()
-    // {
-    //     let recipe = recipes.get(item.0)
-    //                                             .expect("Ingredient not found in recipe");
-        
-        
-    //     let ingredients = &recipe.1;
-
-    //     // This one is made directly from ore
-    //     if ingredients.len() == 1 && ingredients[0].0 == "ORE"
-    //     {
-    //         // primary_materials[&item.0] += item.1;
-    //         let entry = primary_materials.entry(&item.0).or_default();
-    //         *entry += item.1;
-    //     }
-    //     else{
-    //         for ingr in ingredients.iter() 
-    //         {
-    //             let count = (ingr.1 as f32 * (item.1)as f32 / recipe.0  as f32);
-    //             println!("Need {} x {} for making {} x {}", count, ingr.0, item.1, item.0);
-    //             // let comp = Component(ingr.0, count as usize);
-
-    //             let entry = materials.entry(&ingr.0).or_default();
-    //             *entry += count;
-    //             // materials[&item.0] += count;
-    //             let comp = (ingr.0, count);
-    //             stack.push_back(comp);
-    //         }
-    //     }
-    //     println!();
-    // }
-
-    // println!("BOM: {:?}", &primary_materials);
-    // let total: f32 = primary_materials.iter().map(|(item_name, &count)|
-    // {
-    //     let recipe = recipes.get(item_name).expect("Item not found");
-    //     let ingredients = &recipe.1;
-    //     let item_created_per_reaction = recipe.0 as f32;
-    //     let ore_needed_per_reaction = ingredients[0].1 as f32;
-        
-    //     let num_reactions = (count.ceil() / item_created_per_reaction).ceil();
-    //     let ore_needed = ore_needed_per_reaction * num_reactions;
-    //     println!("Ore needed for {} ({}) x {} is {} ({} reactions)", count, count.ceil(), item_name, ore_needed, num_reactions);
-    //     ore_needed
-    // }).sum();
-    // println!("total ore used: {:?}", total);
 }
