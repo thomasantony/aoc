@@ -29,11 +29,10 @@ pub fn parse_numbers_with_delimiter<'a>(
     lines
 }
 
-pub fn parse_digits<'a>(input: &'a str) -> impl Iterator<Item = u32> + '_
-{
+pub fn parse_digits<'a>(input: &'a str) -> impl Iterator<Item = u32> + '_ {
     input.trim().chars().map(|c| c.to_digit(10).unwrap())
 }
+pub mod arcade;
 pub mod graph;
 pub mod tree;
 pub mod vec3;
-pub mod arcade;

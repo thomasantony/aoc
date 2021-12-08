@@ -9,15 +9,13 @@ pub struct Door(String);
 pub struct Key(String);
 
 impl Door {
-    pub fn matches(&self, key: &Key) -> bool 
-    {
+    pub fn matches(&self, key: &Key) -> bool {
         self.0.to_ascii_uppercase() == key.0.to_ascii_uppercase()
     }
 }
 
 impl Key {
-    pub fn matches(&self, door: &Door) -> bool 
-    {
+    pub fn matches(&self, door: &Door) -> bool {
         self.0.to_ascii_uppercase() == door.0.to_ascii_uppercase()
     }
 }
@@ -48,17 +46,13 @@ impl PartialOrd for Key {
 
 impl From<char> for CellType {
     fn from(c: char) -> Self {
-        if c == '#' 
-        {
+        if c == '#' {
             CellType::Wall
-        } else if c == '.' || c == '@'
-        {
+        } else if c == '.' || c == '@' {
             CellType::Empty
-        } else if c.is_ascii_uppercase()
-        {
+        } else if c.is_ascii_uppercase() {
             CellType::Door(Door(c.to_string()))
-        } else if c.is_ascii_lowercase()
-        {
+        } else if c.is_ascii_lowercase() {
             CellType::Key(Key(c.to_string()))
         } else {
             panic!("Invalid character in map {}", c);
@@ -77,72 +71,62 @@ impl Map {
         let mut passable_cells = HashSet::new();
         let mut start_pos = (-1, -1);
         let mut num_keys = 0;
-        for (row, line) in input.lines().enumerate()
-        {
-            for (col, c) in line.chars().enumerate()
-            {
-                if c == '@'
-                {
+        for (row, line) in input.lines().enumerate() {
+            for (col, c) in line.chars().enumerate() {
+                if c == '@' {
                     start_pos = (row as i32, col as i32);
                 }
                 let cell = CellType::from(c);
-                if cell != CellType::Wall
-                {
+                if cell != CellType::Wall {
                     passable_cells.insert((row as i32, col as i32));
                 }
 
                 match cell {
-                    CellType::Key(_) => {num_keys += 1},
+                    CellType::Key(_) => num_keys += 1,
                     _ => {}
                 }
                 grid.insert((row as i32, col as i32), cell);
             }
         }
-        Self
-        {
+        Self {
             grid,
             passable_cells,
             start_pos,
-            num_keys
+            num_keys,
         }
     }
-    fn get_new_node_if_passable(&self, node_from: &Node, new_cell_pos: Coord) -> Option<Node>
-    {
-        if !self.passable_cells.contains(&new_cell_pos)
-        {
+    fn get_new_node_if_passable(&self, node_from: &Node, new_cell_pos: Coord) -> Option<Node> {
+        if !self.passable_cells.contains(&new_cell_pos) {
             None
-        }else{
+        } else {
             let available_keys = &node_from.keys;
             let cell_type = self.grid.get(&new_cell_pos).unwrap();
-            
+
             match cell_type {
                 CellType::Door(door) => {
-                    let key_available = available_keys.iter()
-                                                        .any(|key| door.matches(key));
+                    let key_available = available_keys.iter().any(|key| door.matches(key));
                     if key_available {
-                        Some(Node { 
+                        Some(Node {
                             pos: new_cell_pos,
-                            keys: available_keys.clone()
+                            keys: available_keys.clone(),
                         })
-                    }else {
+                    } else {
                         None
                     }
-                },
+                }
                 CellType::Key(key) => {
                     let mut new_keys = available_keys.clone();
                     new_keys.insert(key.clone());
-                    Some(Node { 
+                    Some(Node {
                         pos: new_cell_pos,
-                        keys: new_keys
+                        keys: new_keys,
                     })
-                },
-                CellType::Empty => {
-                    Some(Node { 
-                        pos: new_cell_pos,
-                        keys: node_from.keys.clone()
-                    })
-                },
-                _ => None
+                }
+                CellType::Empty => Some(Node {
+                    pos: new_cell_pos,
+                    keys: node_from.keys.clone(),
+                }),
+                _ => None,
             }
         }
     }
@@ -150,45 +134,40 @@ impl Map {
 
 use ::aoc2019::graph::BFSGraph;
 impl BFSGraph<Node> for Map {
-    fn successors(&self, node: &Node) -> Vec<Node>
-    {
+    fn successors(&self, node: &Node) -> Vec<Node> {
         let above_pos = (node.pos.0 - 1, node.pos.1);
         let below_pos = (node.pos.0 + 1, node.pos.1);
         let left_pos = (node.pos.0, node.pos.1 - 1);
         let right_pos = (node.pos.0, node.pos.1 + 1);
 
         let new_nodes = vec![above_pos, below_pos, left_pos, right_pos];
-        new_nodes.into_iter()
-                .map(|pos| self.get_new_node_if_passable(node, pos))
-                .flatten()
-                .collect()
+        new_nodes
+            .into_iter()
+            .map(|pos| self.get_new_node_if_passable(node, pos))
+            .flatten()
+            .collect()
     }
 }
-use std::iter::FromIterator;
 use std::collections::BTreeSet;
+use std::iter::FromIterator;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct Node
-{
+pub struct Node {
     pos: Coord,
-    keys: BTreeSet<Key>
+    keys: BTreeSet<Key>,
 }
 
-fn solve_part_a(map: &Map) -> usize
-{
+fn solve_part_a(map: &Map) -> usize {
     let start_node = Node {
         pos: map.start_pos.clone(),
-        keys: BTreeSet::new()
+        keys: BTreeSet::new(),
     };
-    let path = map.search_with(&start_node, |n| {
-        n.keys.len() == map.num_keys
-    });
+    let path = map.search_with(&start_node, |n| n.keys.len() == map.num_keys);
     path.len() - 1
 }
-fn main()
-{
+fn main() {
     let input = include_str!("../../inputs/day18.txt").to_string();
-    
+
     let map = Map::from(&input);
     let part_a = solve_part_a(&map);
     println!("{:?}", part_a);
@@ -198,19 +177,20 @@ fn main()
 mod tests {
     use super::*;
     #[test]
-    fn test_day18_part_a()
-    {
+    fn test_day18_part_a() {
         let input = "#########\n\
                     #b.A.@.a#\n\
-                    #########".to_string();
+                    #########"
+            .to_string();
         let map = Map::from(&input);
         assert_eq!(solve_part_a(&map), 8);
-        
+
         let input = "########################\n\
                     #f.D.E.e.C.b.A.@.a.B.c.#\n\
                     ######################.#\n\
                     #d.....................#\n\
-                    ########################".to_string();
+                    ########################"
+            .to_string();
         let map = Map::from(&input);
         assert_eq!(solve_part_a(&map), 86);
 
@@ -218,7 +198,8 @@ mod tests {
                      #...............b.C.D.f#\n\
                      #.######################\n\
                      #.....@.a.B.c.d.A.e.F.g#\n\
-                     ########################".to_string();
+                     ########################"
+            .to_string();
         let map = Map::from(&input);
         assert_eq!(solve_part_a(&map), 132);
 
@@ -230,7 +211,8 @@ mod tests {
                     #k.E..a...g..B.n#\n\
                     ########.########\n\
                     #l.F..d...h..C.m#\n\
-                    #################".to_string();
+                    #################"
+            .to_string();
         let map = Map::from(&input);
         assert_eq!(solve_part_a(&map), 136);
 
@@ -239,7 +221,8 @@ mod tests {
                     ###d#e#f################\n\
                     ###A#B#C################\n\
                     ###g#h#i################\n\
-                    ########################".to_string();
+                    ########################"
+            .to_string();
         let map = Map::from(&input);
         assert_eq!(solve_part_a(&map), 81);
     }

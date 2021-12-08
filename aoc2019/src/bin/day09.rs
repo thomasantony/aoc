@@ -1,8 +1,7 @@
 use ::aoc2019::intcode::*;
 use ::aoc2019::{parse_numbers_with_delimiter, read_stdin};
 
-fn main()
-{
+fn main() {
     let input = read_stdin();
     let data: Vec<i64> = parse_numbers_with_delimiter(&input, ',').collect();
 

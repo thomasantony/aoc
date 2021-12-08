@@ -112,8 +112,17 @@ mod tests {
             0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4,
             20, 1105, 1, 46, 98, 99,
         ];
-        assert_eq!(vm.load_program(&large_program).push_input(7).execute(), vec![999]);
-        assert_eq!(vm.load_program(&large_program).push_input(8).execute(), vec![1000]);
-        assert_eq!(vm.load_program(&large_program).push_input(9).execute(), vec![1001]);
+        assert_eq!(
+            vm.load_program(&large_program).push_input(7).execute(),
+            vec![999]
+        );
+        assert_eq!(
+            vm.load_program(&large_program).push_input(8).execute(),
+            vec![1000]
+        );
+        assert_eq!(
+            vm.load_program(&large_program).push_input(9).execute(),
+            vec![1001]
+        );
     }
 }

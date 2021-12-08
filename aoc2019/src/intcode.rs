@@ -1,7 +1,7 @@
+use anyhow::{anyhow, Result};
+use std::collections::VecDeque;
 use std::convert::From;
 use std::convert::TryFrom;
-use std::collections::VecDeque;
-use anyhow::{anyhow, Result};
 
 #[derive(Debug)]
 pub enum Parameter {
@@ -18,7 +18,7 @@ impl Parameter {
             Parameter::Relative(offset) => {
                 let addr = (relative_base as i64 + offset) as usize;
                 memory[addr]
-            },
+            }
         }
     }
     fn write(&self, memory: &mut Vec<i64>, value: i64, relative_base: usize) -> Result<()> {
@@ -154,14 +154,12 @@ impl IntComputer {
         }
     }
     /// Add more RAM
-    pub fn set_ram_size(&mut self, ram_size: usize)
-    {
+    pub fn set_ram_size(&mut self, ram_size: usize) {
         self.memory.clear();
         self.memory.resize(ram_size, 0);
     }
     // Resets VM to plain state
-    pub fn reset(&mut self)
-    {
+    pub fn reset(&mut self) {
         self.cpu_state = CpuState::RUNNING;
         self.relative_base = 0;
         self.input.clear();
@@ -190,8 +188,8 @@ impl IntComputer {
     }
     pub fn load_program(&mut self, program: &Vec<i64>) -> &mut Self {
         let size = program.len();
-        if self.memory.len() < size{
-            self.set_ram_size(size+128);
+        if self.memory.len() < size {
+            self.set_ram_size(size + 128);
         }
         self.memory.splice(..size, program.clone().into_iter());
         self
@@ -212,8 +210,7 @@ impl IntComputer {
         self.memory[2] = verb;
         self
     }
-    pub fn is_halted(&mut self) -> bool 
-    {
+    pub fn is_halted(&mut self) -> bool {
         self.cpu_state == CpuState::HALTED
     }
     pub fn execute(&mut self) -> Vec<i64> {
@@ -224,10 +221,11 @@ impl IntComputer {
         }
         self.output = Vec::new();
         self.cpu_state = CpuState::RUNNING;
-        
+
         while self.cpu_state == CpuState::RUNNING {
             let opcode_int = self.memory[self.ip];
-            let opcode = OpCodeType::try_from(opcode_int).expect(& format!("Error parsing opcode at {}", self.ip));
+            let opcode = OpCodeType::try_from(opcode_int)
+                .expect(&format!("Error parsing opcode at {}", self.ip));
             let parameter_modes = ParameterModes::from(opcode_int);
 
             // println!("{}, Opcode: {:?}, {:?}", self.ip, &opcode.kind, &parameters);
@@ -246,10 +244,9 @@ impl IntComputer {
             let parameters = self.parse_parameters(parameter_count, parameter_modes);
             runner(self, parameters);
         }
-        if self.output.len() == 0
-        {
+        if self.output.len() == 0 {
             vec![self.memory[0]]
-        }else{
+        } else {
             self.output.clone()
         }
     }
@@ -279,17 +276,12 @@ fn mul_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
 }
 
 fn store_op(vm: &mut IntComputer, parameters: Vec<Parameter>) {
-    if let Some(val) = vm.input.pop_front()
-    {
+    if let Some(val) = vm.input.pop_front() {
         parameters[0]
-        .write(
-            &mut vm.memory,
-            val,
-            vm.relative_base
-        )
-        .expect("Invalid output parameter for store_op()");
+            .write(&mut vm.memory, val, vm.relative_base)
+            .expect("Invalid output parameter for store_op()");
         vm.ip += 2;
-    }else{
+    } else {
         // Wait for input if there is no input available
         vm.cpu_state = CpuState::WAITING;
     }
@@ -381,26 +373,26 @@ mod tests {
         );
     }
     #[test]
-    fn unit_tests_day_09()
-    {
+    fn unit_tests_day_09() {
         let mut vm = IntComputer::new();
-        
+
         vm.set_ram_size(512);
         assert_eq!(
-            vm.load_program(&vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99])
-                .execute(),
-            vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
-        );
-
-        assert_eq!(
-            vm.load_program(&vec![104,1125899906842624,99])
-                .execute(),
-                vec![1125899906842624]
-        );
-
-        assert_eq!(
-            vm.load_program(& vec![1102,34915192,34915192,7,4,7,99,0])
+            vm.load_program(&vec![
+                109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99
+            ])
             .execute(),
+            vec![109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99]
+        );
+
+        assert_eq!(
+            vm.load_program(&vec![104, 1125899906842624, 99]).execute(),
+            vec![1125899906842624]
+        );
+
+        assert_eq!(
+            vm.load_program(&vec![1102, 34915192, 34915192, 7, 4, 7, 99, 0])
+                .execute(),
             vec![1219070632396864]
         );
     }

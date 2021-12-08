@@ -11,11 +11,11 @@
 ///
 /// Fuel use increases with distance, 1 for first step, 2 for second step etc.
 /// So fuel use for distance d is d*(d+1)/2
-/// 
+///
 /// Some more insight:
 /// Part 1 is the median. I guess I was close with looking at average which minimizes L2-norm. The median minimizes the L1-norm.
 /// Part 2 is apparently (almost) the mean though I am not sure how this is derived as of now.
-/// 
+///
 /// min sum (|x_i - x|)*(|x_i-x| + 1)/2
 fn main() {
     let input = include_str!("../../../inputs/day07.txt");
