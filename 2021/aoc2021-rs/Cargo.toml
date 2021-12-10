@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 cached = "0.26.2"
-indoc = "1.0"
 itermore = "0.1.0"
 nalgebra = "0.29.0"
