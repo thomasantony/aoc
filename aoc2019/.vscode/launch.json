@@ -725,6 +725,43 @@
         },
         "args": [],
         "cwd": "${workspaceFolder}"
+    },
+    {
+        "type": "lldb",
+        "request": "launch",
+        "name": "Debug executable 'day19'",
+        "cargo": {
+            "args": [
+                "build",
+                "--bin=day19",
+                "--package=aoc2019"
+            ],
+            "filter": {
+                "name": "day19",
+                "kind": "bin"
+            }
+        },
+        "args": [],
+        "cwd": "${workspaceFolder}"
+    },
+    {
+        "type": "lldb",
+        "request": "launch",
+        "name": "Debug unit tests in executable 'day19'",
+        "cargo": {
+            "args": [
+                "test",
+                "--no-run",
+                "--bin=day19",
+                "--package=aoc2019"
+            ],
+            "filter": {
+                "name": "day19",
+                "kind": "bin"
+            }
+        },
+        "args": [],
+        "cwd": "${workspaceFolder}"
     }
 ]
 }

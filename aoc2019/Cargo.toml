@@ -13,4 +13,5 @@ num = {version = "0.3.0", default-features = false}
 termion = "1.5.5"
 counter = "0.5.2"
 ndarray = "0.13.1"
+rayon = "1.5.1"
 
